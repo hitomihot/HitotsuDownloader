@@ -192,9 +192,12 @@ function hitomicall(zipnumber)
                 //{
                 //    download_request(zipnumber+1);
                 // }
+                if(endajax())
+                {
+                    isworking();
+                }
             }
         });
-
 }
 
 
@@ -302,11 +305,6 @@ function textsplit(data , sp1 , sp2)
     {
         setzipnumber(zipnumber , 0 , "");
         resetziparray(zipnumber);
-        //blob.close();
-        //var content = window.URL.createObjectURL(blob);
-        //var url = (window.URL || window.webkitURL);
-        //var objectUrl = url.createObjectURL(blob);
-        //url.revokeObjectURL(objectUrl);
     }
 
     function printwithTime(str) {
