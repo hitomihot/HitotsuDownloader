@@ -67,7 +67,14 @@ function getfiledata(readyhtml){
 
         if(galleryid[0] == "e-hentai.org" || galleryid[0] == "exhentai.org")
         {
-            linkid = galleryid[galleryid.length-3];
+            if(galleryid[1] == "g")
+            {
+                linkid = galleryid[galleryid.length-3];
+            }
+            else if(galleryid == "s")
+            {
+                linkid = galleryid[galleryid.length-1].split("-")[0];
+            }
         }
         else if(galleryid[0] == "hitomi.la")
         {
