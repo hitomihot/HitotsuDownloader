@@ -36,10 +36,18 @@ function endajax() {
 }
 
 function download_get(galleryhtml) {
-    printwithTime("start------------");
-    var ziplength = zip.length;
-    var readyhtml = galleryhtml.split(".html");
+    if(onworking == "")
+    {
+        printwithTime("start------------");
+    }
+    else
+    {
+        printwithTime("add download url-----------");
+    }
 
+    var ziplength = zip.length;
+    var readyhtml = galleryhtml.split("https://");
+    readyhtml.shift();
 
     getfiledata(readyhtml);
 
@@ -51,13 +59,23 @@ function download_get(galleryhtml) {
 
 function getfiledata(readyhtml){
     var pushnumber = zip.length;
-    for(var zipnumber = 0; zipnumber < readyhtml.length -1 ; zipnumber++) {
+    var linkid = 0;
+    for(var zipnumber = 0; zipnumber < readyhtml.length ; zipnumber++) {
         initzipnumber(zipnumber+ pushnumber);
 
         var galleryid = readyhtml[zipnumber].split("/");
 
-        setzipnumber(zipnumber+ pushnumber , 1 , galleryid[galleryid.length - 1]);
-        setzipnumber(zipnumber+ pushnumber , 2 , galleryid[galleryid.length - 1]);
+        if(galleryid[0] == "e-hentai.org")
+        {
+            linkid = galleryid[galleryid.length-3];
+        }
+        else if(galleryid[0] == "hitomi.la")
+        {
+            linkid = galleryid[galleryid.length-1].split(".")[0];
+        }
+
+        setzipnumber(zipnumber+ pushnumber , 1 , linkid);
+        setzipnumber(zipnumber+ pushnumber , 2 , linkid);
         setzipnumber(zipnumber+ pushnumber , 3 , readyhtml[zipnumber]);
 
         download_request(zipnumber+ pushnumber);
@@ -75,7 +93,7 @@ function  initzipnumber(zipnumber) {
     zip[zipnumber][0] = new JSZip();
     zip[zipnumber][1] = "";//gallery number
     zip[zipnumber][2] = "";//file name
-    zip[zipnumber][3] = ""
+    zip[zipnumber][3] = ""//eval galleries or reader
     zip[zipnumber][4] = [];//imageURL list
     zip[zipnumber][5] = [];//js liat
     zip[zipnumber][6] = 0;//count finish download
@@ -128,9 +146,15 @@ function getimagedata(zipnumber) {
 }
 
 function download_request(zipnumber) {
+
     var galleryid = zip[zipnumber][3].split("/");
 
-    if (galleryid[galleryid.length - 2] == "galleries") {
+    hitomicall(zipnumber);
+
+}
+
+function hitomicall(zipnumber)
+{
         startajax();
         $.ajax({
             url: 'http://localhost:443/https://hitomi.la/galleries/' + zip[zipnumber][1] + '.html',
@@ -160,16 +184,16 @@ function download_request(zipnumber) {
                 {
                     isworking();
                 }
+            },
+            error: function()
+            {
+                setzipnumber(zipnumber , 3 , "");
+                // if(zipnumber != zip.length -1)
+                //{
+                //    download_request(zipnumber+1);
+                // }
             }
         });
-    }
-    else {
-        setzipnumber(zipnumber , 3 , "");
-       // if(zipnumber != zip.length -1)
-        //{
-        //    download_request(zipnumber+1);
-       // }
-    }
 
 }
 
@@ -202,16 +226,13 @@ function textsplit(data , sp1 , sp2)
                // {
                 //    download_gallery(zipnumber+1);
                 //}
-                if(jQuery.active == 1)
+                if(endajax())
                 {
                     isworking();
                 }
             }
         });
-        if(endajax())
-        {
-            isworking();
-        }
+
     }
 
     function subdomain_from_url(i) {
