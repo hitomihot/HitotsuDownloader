@@ -65,7 +65,7 @@ function getfiledata(readyhtml){
 
         var galleryid = readyhtml[zipnumber].split("/");
 
-        if(galleryid[0] == "e-hentai.org")
+        if(galleryid[0] == "e-hentai.org" || galleryid[0] == "exhentai.org")
         {
             linkid = galleryid[galleryid.length-3];
         }
