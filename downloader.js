@@ -64,10 +64,11 @@ function setthreadlock(number) {
 function getfiledata(readyhtml){
     var pushnumber = zip.length;
     var linkid = 0;
-    countajaxthread = countajaxthread + readyhtml.length;
+    var readyhtmllength = readyhtml.length;
+    countajaxthread = countajaxthread + readyhtmllength;
     //danger!
 
-    for(var zipnumber = 0; zipnumber < readyhtml.length ; zipnumber++) {
+    for(var zipnumber = 0; zipnumber < readyhtmllength ; zipnumber++) {
         initzipnumber(zipnumber+ pushnumber);
         var galleryid = readyhtml[zipnumber].split("/");
 
@@ -115,11 +116,12 @@ function setzipnumber( data, zipnumber , number ,arraynumber){
 }
 
 
-function isworking()
+function isworking()//thread lock fix
 {
     var zipnumber = -1;
+    var ziplength = zip.length;
     if(onworking == ""){
-        for(i = zip.length -1 ; i > -1 ; i --) {
+        for(i = ziplength -1 ; i > -1 ; i --) {
             if(zip[i][6] == 0){
                 zipnumber = i;
             }
@@ -137,12 +139,13 @@ function isworking()
 
 
 function getimagedata(zipnumber) {
-    if(zipnumber < zip.length) {
+    var ziplength = zip.length;
+    if(zipnumber < ziplength) {
         for(var i = 0 ; (i < subDomainList.length * callPerServer) && (i < zip[zipnumber][4].length) ; i ++){
             download_next_image(i , zipnumber);
         }
     }
-    else{
+    else{//thread lock fix
         onworking = "";
         printwithTime("finish--------");
     }
@@ -180,11 +183,11 @@ function hitomicall(zipnumber)
                 setzipnumber(creatertext + "__" + datatext , zipnumber , 2 );
                 setzipnumber("" , zipnumber , 3);
 
-                if(endajax()){
+                if(endajax()){//thread lock fix
                     isworking();
                 }
             },
-            error: function() {
+            error: function() {//thread lock fix
                 setzipnumber("" , zipnumber , 3 );
                 if(endajax()) {
                     isworking();
@@ -216,7 +219,7 @@ function textsplit(data , sp1 , sp2)
                     setzipnumber( image.name , zipnumber , 5 ,zip[zipnumber][5].length);
                 });
 
-                if(endajax()) {
+                if(endajax()) {//thread lock fix
                     isworking();
                 }
             },
