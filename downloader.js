@@ -42,14 +42,30 @@ function download_get(galleryhtml) {
     var ziplength = zip.length;
     var readyhtml = galleryhtml.split("https://");
     readyhtml.shift();
+    setthreadlock(readyhtml.length).then(getfiledata(readyhtml) , thenerror());
 
-    getfiledata(readyhtml);
+
 }
+
+function setthreadlock(number) {
+    countajaxthread = countajaxthread + number;
+    return new Promise(function (resolve, reject) {
+
+            if (countajaxthread > 0) {
+                resolve();
+            }
+
+            else {
+                reject();
+            }
+    });
+};
 
 function getfiledata(readyhtml){
     var pushnumber = zip.length;
     var linkid = 0;
     countajaxthread = countajaxthread + readyhtml.length;
+    //danger!
 
     for(var zipnumber = 0; zipnumber < readyhtml.length ; zipnumber++) {
         initzipnumber(zipnumber+ pushnumber);
