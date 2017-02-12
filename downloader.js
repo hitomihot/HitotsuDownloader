@@ -1,16 +1,42 @@
 
-
 let zip = [];
 let completezip = [];
 let errorzip = [];
-const subDomainList = ["la","aa","ba"];
-const callPerServer = 2;
 let all_url_stack = "";//lock
 let datalockcount = 0;
+const subDomainList = ["la","aa","ba"];
+const callPerServer = 2;
+const download_array = [];
+
+download_array[0] = function download_html(zipnumber , passlockcount) {
+    download_hitomi_html(zipnumber , passlockcount);
+}
+
+download_array[1] = function download_hitomi_js(zipnumber , passlockcount ) {
+    $.ajax({
+        url: 'http://localhost:443/https://hitomi.la/galleries/'+ zip[zipnumber][1] +'.js',
+        //async:false,
+        success: function() {
+            $.each(galleryinfo, function(i, image) {
+                setzipnumber( url_from_url(zip[zipnumber][1] + "/" +image.name , i) , zipnumber , 4 ,zip[zipnumber][4].length);
+                setzipnumber( image.name , zipnumber , 5 ,zip[zipnumber][5].length);
+            });
+            returnlock(passlockcount).then(isworking() , thenerror());
+
+        },
+        error: function() {
+            setzipnumber("error", zipnumber , 4 ,0);
+            setzipnumber("error", zipnumber , 5 ,0);
+            returnlock(passlockcount).then(isworking() , thenerror());
+        }
+    });
+}
+
 
 $(document).ready(function() {
     $('#getData').click(function () {
         if (datalockcount == 0 && zip.length == 0) {
+            //need disable button
             printwithTime("start------------");
             download_get(all_url_stack + $('#input_url').val(), $('#input_fileName').val());
             all_url_stack = "";
@@ -33,6 +59,9 @@ function getfiledata(readyhtml){
     let pushnumber = zip.length;
     let readyhtmllength = readyhtml.length;
     let passlockcount = datalockcount;
+    let download_arraylength = download_array.length;
+
+    setthreadlock(readyhtmllength * download_arraylength);//download_함수들이 늘어나면 어떻게 해야하는가?
 
     for(let zipnumber = 0; zipnumber < readyhtmllength ; zipnumber++) {
         initzipnumber(zipnumber+ pushnumber);
@@ -53,8 +82,10 @@ function getfiledata(readyhtml){
         //setzipnumber(linkid , zipnumber+ pushnumber , 2 );
         setzipnumber(readyhtml[zipnumber] , zipnumber+ pushnumber , 3 );
 
-        download_html(zipnumber+ pushnumber , passlockcount);
-        setthreadlock(1).then(download_hitomi_js(zipnumber+ pushnumber  , passlockcount) , thenerror());
+        for(let i = 0 ; i < download_arraylength ; i++)
+        {
+            download_array[i](zipnumber+ pushnumber , passlockcount);
+        }
     }
 }
 
@@ -106,7 +137,7 @@ function returnlock(passlockcount) {
 
 
 function download_html(zipnumber , passlockcount) {
-    setthreadlock(1).then(download_hitomi_html(zipnumber , passlockcount) , thenerror());
+    download_hitomi_html(zipnumber , passlockcount);
 }
 
 function download_hitomi_html(zipnumber , passlockcount)
@@ -152,7 +183,7 @@ function textsplit(data , sp1 , sp2)
     }
 }
 
-function download_hitomi_js(zipnumber , passlockcount) {
+function download_hitomi_js(zipnumber , passlockcount ) {
     $.ajax({
         url: 'http://localhost:443/https://hitomi.la/galleries/'+ zip[zipnumber][1] +'.js',
         //async:false,
@@ -162,6 +193,7 @@ function download_hitomi_js(zipnumber , passlockcount) {
                 setzipnumber( image.name , zipnumber , 5 ,zip[zipnumber][5].length);
             });
             returnlock(passlockcount).then(isworking() , thenerror());
+
         },
         error: function() {
             setzipnumber("error", zipnumber , 4 ,0);
