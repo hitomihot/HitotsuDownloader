@@ -14,22 +14,65 @@ download_array[0] = function download_html(zipnumber , passlockcount) {
 
 download_array[1] = function download_hitomi_js(zipnumber , passlockcount ) {
     $.ajax({
-        url: 'http://localhost:443/https://hitomi.la/galleries/'+ zip[zipnumber][1] +'.js',
+        url: 'http://localhost:443/https://hitomi.la/galleries/'+ zip[zipnumber].filenumber +'.js',
         //async:false,
         success: function() {
             $.each(galleryinfo, function(i, image) {
-                setzipnumber( url_from_url(zip[zipnumber][1] + "/" +image.name , i) , zipnumber , 4 ,zip[zipnumber][4].length);
-                setzipnumber( image.name , zipnumber , 5 ,zip[zipnumber][5].length);
+                zip[zipnumber].pushimageurl(url_from_url(zip[zipnumber].filenumber + "/" +image.name , i));
+                zip[zipnumber].pushimagename(image.name);
             });
             returnlock(passlockcount).then(isworking() , thenerror());
 
         },
         error: function() {
-            setzipnumber("error", zipnumber , 4 ,0);
-            setzipnumber("error", zipnumber , 5 ,0);
+            zip[zipnumber].imageurl = ["error"];
+            zip[zipnumber].imagename = ["error"];
             returnlock(passlockcount).then(isworking() , thenerror());
         }
     });
+}
+
+class zipmember{
+    constructor()
+    {
+        this.filename = "";//for save file
+        this.fileurl = "";//for save original url
+        this.filenumber = "";//for download
+        this.imagename = [];//for save imagefile
+        this.imageurl = [];//for download
+        this.zip = new JSZip();
+        this.downloadcount = 0;
+    }
+
+    get filename() {return this._filename; }
+    get fileurl() {return this._fileurl; }
+    get filenumber() {return this._filenumber; }
+    get imagename() {return this._imagename; }
+    get imageurl() {return this._imageurl; }
+    get zip() {return this._zip; }
+    get downloadcount() {return this._downloadcount; }
+
+    set filename(stri) {this._filename = stri; }
+    set fileurl(stri) {this._fileurl = stri; }
+    set filenumber(stri) {this._filenumber = stri; }
+    set imagename(arra) { if(Array.isArray(arra)){this._imagename = arra;} }
+    set imageurl(arra) {if(Array.isArray(arra)){this._imageurl = arra;} }
+    set zip(jszi) {this._zip  = jszi; }//need block if not JSzip
+    set downloadcount(inte) {this._downloadcount = inte; }
+
+    pushimagename(stri){
+        this.imagename.push(stri);
+    };
+    pushimageurl(stri){
+        this.imageurl.push(stri);
+    };
+    addfinishcount(){
+        this.downloadcount = this.downloadcount +1;
+    };
+}
+
+function  initzipnumber(zipnumber) {
+    zip[zipnumber] = new zipmember();
 }
 
 
@@ -61,7 +104,7 @@ function getfiledata(readyhtml){
     let passlockcount = datalockcount;
     let download_arraylength = download_array.length;
 
-    setthreadlock(readyhtmllength * download_arraylength);//download_함수들이 늘어나면 어떻게 해야하는가?
+    setthreadlock(readyhtmllength * download_arraylength);
 
     for(let zipnumber = 0; zipnumber < readyhtmllength ; zipnumber++) {
         initzipnumber(zipnumber+ pushnumber);
@@ -78,35 +121,13 @@ function getfiledata(readyhtml){
             linkid = urltext[urltext.length-1].split(".")[0];
         }
 
-        setzipnumber(linkid , zipnumber+ pushnumber , 1 );
-        //setzipnumber(linkid , zipnumber+ pushnumber , 2 );
-        setzipnumber(readyhtml[zipnumber] , zipnumber+ pushnumber , 3 );
+        zip[zipnumber+ pushnumber].filenumber = linkid;
+        zip[zipnumber+ pushnumber].fileurl = readyhtml[zipnumber];
 
         for(let i = 0 ; i < download_arraylength ; i++)
         {
             download_array[i](zipnumber+ pushnumber , passlockcount);
         }
-    }
-}
-
-function  initzipnumber(zipnumber) {
-    zip[zipnumber] = [];
-    zip[zipnumber][0] = new JSZip();
-    zip[zipnumber][1] = "";//gallery number
-    zip[zipnumber][2] = "";//file name
-    zip[zipnumber][3] = ""//save original url info.
-    zip[zipnumber][4] = [];//imageURL list
-    zip[zipnumber][5] = [];//image name list
-    zip[zipnumber][6] = 0;//count finish download
-}
-
-function setzipnumber( data, zipnumber , number ,arraynumber){
-    if(Array.isArray(zip[zipnumber][number]) && !(arraynumber === undefined)){
-        zip[zipnumber][number][arraynumber] = data;
-    }
-    else//maybe danger
-    {
-        zip[zipnumber][number] = data;
     }
 }
 
@@ -143,7 +164,7 @@ function download_html(zipnumber , passlockcount) {
 function download_hitomi_html(zipnumber , passlockcount)
 {
         $.ajax({
-            url: 'http://localhost:443/https://hitomi.la/galleries/' + zip[zipnumber][1] + '.html',
+            url: 'http://localhost:443/https://hitomi.la/galleries/' + zip[zipnumber].filenumber + '.html',
             //async:false,
             success: function (data) {
                 let text1 = textsplit(data , "-gallery" , "gallery-info");
@@ -155,18 +176,18 @@ function download_hitomi_html(zipnumber , passlockcount)
                 creatertext = textsplit(creatertext , ".html\">" , "</a");
 
                 if(datatext == ""){
-                    datatext = zip[zipnumber][1];
+                    datatext = zip[zipnumber].filenumber ;
                 }
 
                 if(creatertext == ""){
                     creatertext = "N_A";
                 }
 
-                setzipnumber(creatertext + "__" + datatext , zipnumber , 2 );
+                zip[zipnumber].filename = creatertext + "__" + datatext;
                 returnlock(passlockcount).then(isworking() , thenerror());
             },
             error: function() {
-                setzipnumber(zip[zipnumber][1] , zipnumber , 2 );
+                zip[zipnumber].filename = zip[zipnumber].filenumber;
                 returnlock(passlockcount).then(isworking() , thenerror());
             }
         });
@@ -189,15 +210,15 @@ function download_hitomi_js(zipnumber , passlockcount ) {
         //async:false,
         success: function() {
             $.each(galleryinfo, function(i, image) {
-                setzipnumber( url_from_url(zip[zipnumber][1] + "/" +image.name , i) , zipnumber , 4 ,zip[zipnumber][4].length);
-                setzipnumber( image.name , zipnumber , 5 ,zip[zipnumber][5].length);
+                zip[zipnumber].pushimageurl(url_from_url(zip[zipnumber].filenumber + "/" +image.name , i));
+                zip[zipnumber].pushimagename(image.name);
             });
             returnlock(passlockcount).then(isworking() , thenerror());
 
         },
         error: function() {
-            setzipnumber("error", zipnumber , 4 ,0);
-            setzipnumber("error", zipnumber , 5 ,0);
+            zip[zipnumber].pushimageurl(url_from_url(zip[zipnumber].filenumber + "/" +image.name , i));
+            zip[zipnumber].pushimagename(image.name);
             returnlock(passlockcount).then(isworking() , thenerror());
         }
     });
@@ -221,7 +242,7 @@ function isworking()
     }
     else if(datalockcount == 0 && (zip.length > 0))
     {
-        if(zip[0][4][0] == "error")
+        if(zip[0].imageurl[0] == "error")
         {
             errorzip.push(zip.shift());
             isworking();
@@ -241,12 +262,12 @@ function isworking()
     }
     else
     {
-        printwithTime("error in isworking - " + zip[0][3] + "\ndatalockcount = " + datalockcount + "\nzip.length = " + zip.length);
+        printwithTime("error in isworking - " + zip[0].fileurl + "\ndatalockcount = " + datalockcount + "\nzip.length = " + zip.length);
     }
 }
 
 function getimagedata(zipnumber) {
-    for(let i = 0 ; (i < subDomainList.length * callPerServer) && (i < zip[zipnumber][4].length) ; i ++){
+    for(let i = 0 ; (i < subDomainList.length * callPerServer) && (i < zip[zipnumber].imageurl.length) ; i ++){
         download_next_image(i , zipnumber);
     }
 }
@@ -275,23 +296,23 @@ function ajax_download_blob(index, zipnumber , count) {
             }
         }
     }
-    xhr.open('GET', zip[zipnumber][4][index]);
+    xhr.open('GET', zip[zipnumber].imageurl[index]);
     xhr.responseType = 'arraybuffer';
     xhr.send();
 }
 
 function image_downloaded(imgData , index, zipnumber) {
-    zip[zipnumber][0].file(zip[zipnumber][5][index], imgData, {base64: true});
-    setzipnumber(zip[zipnumber][6] + 1 , zipnumber , 6 );
+    zip[zipnumber].zip.file(zip[zipnumber].imagename[index], imgData, {base64: true});
+    zip[zipnumber].addfinishcount();
         // > maybe wrong
-    if (zip[zipnumber][6] >= zip[zipnumber][4].length) {
-        let content = zip[zipnumber][0].generateAsync({type:"blob"})
+    if (zip[zipnumber].downloadcount >= zip[zipnumber].imageurl.length) {
+        let content = zip[zipnumber].zip.generateAsync({type:"blob"})
         .then(function (blob) {
-            saveAs(blob, zip[zipnumber][2]+".zip")
+            saveAs(blob, zip[zipnumber].filename+".zip")
                 .then(nextcontent(blob , zipnumber) , thenerror());
         }  , thenerror());
     }
-    else if (index + subDomainList.length * callPerServer < zip[zipnumber][4].length){
+    else if (index + subDomainList.length * callPerServer < zip[zipnumber].imageurl.length){
         download_next_image(index + subDomainList.length * callPerServer , zipnumber);
     }
 }
@@ -301,10 +322,10 @@ function thenerror(){}
 function nextcontent(blob , zipnumber){
     var completeziplength = completezip.length
     completezip.push(zip.shift());
-    completezip[completeziplength][0] = "";
-    completezip[completeziplength][4] = "";
-    completezip[completeziplength][5] = "";
-    printwithTime(completezip[completeziplength][2]+".zip finish");
+    completezip[completeziplength].zip = "";
+    completezip[completeziplength].imageurl = [""];
+    completezip[completeziplength].imagename = [""];
+    printwithTime(completezip[completeziplength].filename+".zip finish");
     //blob.close();
     isworking(0)
 }
