@@ -43,7 +43,7 @@ class zipmember{
         this.imagename = [];//for save imagefile
         this.imageurl = [];//for download
         this.jszip = new JSZip();
-        this.downloadcount = 0;
+        this.threadcount = 0;
     }
 
     get filename() {return this._filename; }
@@ -52,7 +52,7 @@ class zipmember{
     get imagename() {return this._imagename; }
     get imageurl() {return this._imageurl; }
     get jszip() {return this._jszip; }
-    get downloadcount() {return this._downloadcount; }
+    get threadcount() {return this._threadcount; }
 
     set filename(stri) {this._filename = stri; }
     set fileurl(stri) {this._fileurl = stri; this.setfilenumber(stri);}
@@ -60,7 +60,7 @@ class zipmember{
     set imagename(arra) { if(Array.isArray(arra)){this._imagename = arra;} }
     set imageurl(arra) {if(Array.isArray(arra)){this._imageurl = arra;} }
     set jszip(jszi) {this._jszip = jszi;}//need block if not JSzip
-    set downloadcount(inte) {this._downloadcount = inte; }
+    set threadcount(inte) {this._threadcount = inte; }
 
     pushimagename(stri){
         this.imagename.push(stri);
@@ -68,8 +68,8 @@ class zipmember{
     pushimageurl(stri){
         this.imageurl.push(stri);
     };
-    addfinishcount(){
-        this.downloadcount = this.downloadcount +1;
+    unlockthread(){
+        this.threadcount = this.threadcount -1;
     };
     setfilenumber(inputurl){
         let urltext = inputurl.split("/");
@@ -221,12 +221,14 @@ function download_hitomi_js(zipnumber , passlockcount ) {
                 zip[zipnumber].pushimageurl(url_from_url(zip[zipnumber].filenumber + "/" +image.name , i));
                 zip[zipnumber].pushimagename(image.name);
             });
+            zip[zipnumber].threadcount = zip[zipnumber].imageurl.length;
             returnlock(passlockcount).then(isworking() , thenerror());
 
         },
         error: function() {
-            zip[zipnumber].pushimageurl(url_from_url(zip[zipnumber].filenumber + "/" +image.name , i));
-            zip[zipnumber].pushimagename(image.name);
+            //zip[zipnumber].pushimageurl(url_from_url(zip[zipnumber].filenumber + "/" +image.name , i));
+            //zip[zipnumber].pushimagename(image.name);
+            zip[zipnumber].threadcount = 0;
             returnlock(passlockcount).then(isworking() , thenerror());
         }
     });
@@ -311,17 +313,21 @@ function ajax_download_blob(index, zipnumber , count) {
 
 function image_downloaded(imgData , index, zipnumber) {
     zip[zipnumber].jszip.file(zip[zipnumber].imagename[index], imgData, {base64: true});
-    zip[zipnumber].addfinishcount();
+    zip[zipnumber].unlockthread();
         // > maybe wrong
-    if (zip[zipnumber].downloadcount >= zip[zipnumber].imageurl.length) {
+    if (zip[zipnumber].threadcount <= 0) {// need check error when threadcount < 0 ;
         let content = zip[zipnumber].jszip.generateAsync({type:"blob"})
         .then(function (blob) {
             saveAs(blob, zip[zipnumber].filename+".zip")
                 .then(nextcontent(blob , zipnumber) , thenerror());
         }  , thenerror());
     }
-    else if (index + subDomainList.length * callPerServer < zip[zipnumber].imageurl.length){
+    else if (index + subDomainList.length * callPerServer < zip[zipnumber].imageurl.length){//maybe i can upgrade
         download_next_image(index + subDomainList.length * callPerServer , zipnumber);
+    }
+    else
+    {
+        //empty
     }
 }
 
