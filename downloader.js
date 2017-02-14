@@ -58,18 +58,18 @@ class zipmember{
     set fileurl(stri) {this._fileurl = stri; this.setfilenumber(stri);}
     set filenumber(stri) { }
     set imagename(arra) { if(Array.isArray(arra)){this._imagename = arra;} }
-    set imageurl(arra) {if(Array.isArray(arra)){this._imageurl = arra;} }
+    set imageurl(arra) {if(Array.isArray(arra)){this._imageurl = arra;}}
     set jszip(jszi) {this._jszip = jszi;}//need block if not JSzip
     set threadcount(inte) {this._threadcount = inte; }
 
     pushimagename(stri){
-        this.imagename.push(stri);
+        this._imagename.push(stri);
     };
     pushimageurl(stri){
-        this.imageurl.push(stri);
+        this._imageurl.push(stri);
     };
     unlockthread(){
-        this.threadcount = this.threadcount -1;
+        this._threadcount = this._threadcount -1;
     };
     setfilenumber(inputurl){
         let urltext = inputurl.split("/");
@@ -220,15 +220,15 @@ function download_hitomi_js(zipnumber , passlockcount ) {
             $.each(galleryinfo, function(i, image) {
                 zip[zipnumber].pushimageurl(url_from_url(zip[zipnumber].filenumber + "/" +image.name , i));
                 zip[zipnumber].pushimagename(image.name);
+                //zip[zipnumber].lockthread(); i try set thread lock here. but fail. why?
             });
-            zip[zipnumber].threadcount = zip[zipnumber].imageurl.length;
             returnlock(passlockcount).then(isworking() , thenerror());
 
         },
         error: function() {
             //zip[zipnumber].pushimageurl(url_from_url(zip[zipnumber].filenumber + "/" +image.name , i));
             //zip[zipnumber].pushimagename(image.name);
-            zip[zipnumber].threadcount = 0;
+            zip[zipnumber].threadcount = 0;//is this really work?
             returnlock(passlockcount).then(isworking() , thenerror());
         }
     });
@@ -277,22 +277,28 @@ function isworking()
 }
 
 function getimagedata(zipnumber) {
-    for(let i = 0 ; (i < subDomainList.length * callPerServer) && (i < zip[zipnumber].imageurl.length) ; i ++){
-        download_next_image(i , zipnumber);
+    let imageurllength = zip[zipnumber].imageurl.length -1;
+    zip[zipnumber]._threadcount = imageurllength +1;
+    let maxthread = subDomainList.length * callPerServer;
+    for(let i = 0 ; (i < subDomainList.length * callPerServer) && (i < imageurllength) ; i ++){
+        download_next_image(imageurllength -i, zipnumber , maxthread);
     }
 }
 
-function download_next_image(index , zipnumber) {
-    ajax_download_blob(index, zipnumber , 0);
+function download_next_image(index , zipnumber , maxthread) {
+    if(index >= 0)
+    {
+        ajax_download_blob(index, zipnumber , 0 , maxthread);
+    }
 }
 
-function ajax_download_blob(index, zipnumber , count) {
+function ajax_download_blob(index, zipnumber , count , maxthread) {
     let xhr = new XMLHttpRequest();
 
     xhr.onreadystatechange = function() {
         if(this.readyState == 4) {
             if( this.status == 200 || this.status == 304) {
-                image_downloaded(this.response , index, zipnumber);
+                image_downloaded(this.response , index, zipnumber , maxthread);
             }
 
             else {
@@ -311,23 +317,19 @@ function ajax_download_blob(index, zipnumber , count) {
     xhr.send();
 }
 
-function image_downloaded(imgData , index, zipnumber) {
+function image_downloaded(imgData , index, zipnumber , maxthread) {
     zip[zipnumber].jszip.file(zip[zipnumber].imagename[index], imgData, {base64: true});
     zip[zipnumber].unlockthread();
         // > maybe wrong
-    if (zip[zipnumber].threadcount <= 0) {// need check error when threadcount < 0 ;
+    if (zip[zipnumber].threadcount == 0) {// need check error when threadcount < 0 ;
         let content = zip[zipnumber].jszip.generateAsync({type:"blob"})
         .then(function (blob) {
             saveAs(blob, zip[zipnumber].filename+".zip")
                 .then(nextcontent(blob , zipnumber) , thenerror());
         }  , thenerror());
     }
-    else if (index + subDomainList.length * callPerServer < zip[zipnumber].imageurl.length){//maybe i can upgrade
-        download_next_image(index + subDomainList.length * callPerServer , zipnumber);
-    }
-    else
-    {
-        //empty
+    else{
+        download_next_image(index - maxthread , zipnumber , maxthread);
     }
 }
 
@@ -336,12 +338,12 @@ function thenerror(){}
 function nextcontent(blob , zipnumber){
     var completeziplength = completezip.length
     completezip.push(zip.shift());
-    completezip[completeziplength].jszip = "";
-    completezip[completeziplength].imageurl = [""];
-    completezip[completeziplength].imagename = [""];
+    //completezip[completeziplength].jszip = "";
+    //completezip[completeziplength].imageurl = [""];
+    //completezip[completeziplength].imagename = [""];
     printwithTime(completezip[completeziplength].filename+".zip finish");
     //blob.close();
-    isworking(0)
+    isworking()
 }
 
 function printwithTime(str) {
