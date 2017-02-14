@@ -8,6 +8,8 @@ const subDomainList = ["la","aa","ba"];
 const callPerServer = 2;
 const download_array = [];
 
+let a = "";
+a.on
 download_array[0] = function download_html(zipnumber , passlockcount) {
     download_hitomi_html(zipnumber , passlockcount);
 }
@@ -40,7 +42,7 @@ class zipmember{
         this.filenumber = "";//for download
         this.imagename = [];//for save imagefile
         this.imageurl = [];//for download
-        this.zip = new JSZip();
+        this.jszip = new JSZip();
         this.downloadcount = 0;
     }
 
@@ -49,15 +51,15 @@ class zipmember{
     get filenumber() {return this._filenumber; }
     get imagename() {return this._imagename; }
     get imageurl() {return this._imageurl; }
-    get zip() {return this._zip; }
+    get jszip() {return this._jszip; }
     get downloadcount() {return this._downloadcount; }
 
     set filename(stri) {this._filename = stri; }
-    set fileurl(stri) {this._fileurl = stri; }
-    set filenumber(stri) {this._filenumber = stri; }
+    set fileurl(stri) {this._fileurl = stri; this.setfilenumber(stri);}
+    set filenumber(stri) { }
     set imagename(arra) { if(Array.isArray(arra)){this._imagename = arra;} }
     set imageurl(arra) {if(Array.isArray(arra)){this._imageurl = arra;} }
-    set zip(jszi) {this._zip  = jszi; }//need block if not JSzip
+    set jszip(jszi) {this._jszip = jszi;}//need block if not JSzip
     set downloadcount(inte) {this._downloadcount = inte; }
 
     pushimagename(stri){
@@ -69,6 +71,25 @@ class zipmember{
     addfinishcount(){
         this.downloadcount = this.downloadcount +1;
     };
+    setfilenumber(inputurl){
+        let urltext = inputurl.split("/");
+        let linkid = "";
+        if(urltext[0] == "e-hentai.org" || urltext[0] == "exhentai.org") {
+            if(urltext[1] == "g") {
+                linkid = urltext[urltext.length-3];
+            }
+            else if(urltext == "s") {
+                linkid = urltext[urltext.length-1].split("-")[0];
+            }
+        }
+        else if(urltext[0] == "hitomi.la"){
+            linkid = urltext[urltext.length-1].split(".")[0];
+        }
+        else{
+            linkid = "error";
+        }
+        this._filenumber = linkid;
+    }
 }
 
 function  initzipnumber(zipnumber) {
@@ -92,37 +113,24 @@ $(document).ready(function() {
 });
 
 function download_get(galleryhtml) {
-        let readyhtml = galleryhtml.split("https://");
-        readyhtml.shift();
-        getfiledata(readyhtml);
+        let inputurl = galleryhtml.split("https://");
+        inputurl.shift();
+        getfiledata(inputurl);
 }
 
-function getfiledata(readyhtml){
+function getfiledata(inputurl){
     let linkid = 0;
     let pushnumber = zip.length;
-    let readyhtmllength = readyhtml.length;
+    let inputurllength = inputurl.length;
     let passlockcount = datalockcount;
     let download_arraylength = download_array.length;
 
-    setthreadlock(readyhtmllength * download_arraylength);
+    setthreadlock(inputurllength * download_arraylength);
 
-    for(let zipnumber = 0; zipnumber < readyhtmllength ; zipnumber++) {
+    for(let zipnumber = 0; zipnumber < inputurllength ; zipnumber++) {
         initzipnumber(zipnumber+ pushnumber);
-        let urltext = readyhtml[zipnumber].split("/");
-        if(urltext[0] == "e-hentai.org" || urltext[0] == "exhentai.org") {
-            if(urltext[1] == "g") {
-                linkid = urltext[urltext.length-3];
-            }
-            else if(urltext == "s") {
-                linkid = urltext[urltext.length-1].split("-")[0];
-            }
-        }
-        else if(urltext[0] == "hitomi.la"){
-            linkid = urltext[urltext.length-1].split(".")[0];
-        }
 
-        zip[zipnumber+ pushnumber].filenumber = linkid;
-        zip[zipnumber+ pushnumber].fileurl = readyhtml[zipnumber];
+        zip[zipnumber+ pushnumber].fileurl = inputurl[zipnumber];
 
         for(let i = 0 ; i < download_arraylength ; i++)
         {
@@ -302,11 +310,11 @@ function ajax_download_blob(index, zipnumber , count) {
 }
 
 function image_downloaded(imgData , index, zipnumber) {
-    zip[zipnumber].zip.file(zip[zipnumber].imagename[index], imgData, {base64: true});
+    zip[zipnumber].jszip.file(zip[zipnumber].imagename[index], imgData, {base64: true});
     zip[zipnumber].addfinishcount();
         // > maybe wrong
     if (zip[zipnumber].downloadcount >= zip[zipnumber].imageurl.length) {
-        let content = zip[zipnumber].zip.generateAsync({type:"blob"})
+        let content = zip[zipnumber].jszip.generateAsync({type:"blob"})
         .then(function (blob) {
             saveAs(blob, zip[zipnumber].filename+".zip")
                 .then(nextcontent(blob , zipnumber) , thenerror());
@@ -322,7 +330,7 @@ function thenerror(){}
 function nextcontent(blob , zipnumber){
     var completeziplength = completezip.length
     completezip.push(zip.shift());
-    completezip[completeziplength].zip = "";
+    completezip[completeziplength].jszip = "";
     completezip[completeziplength].imageurl = [""];
     completezip[completeziplength].imagename = [""];
     printwithTime(completezip[completeziplength].filename+".zip finish");
