@@ -338,9 +338,9 @@ function thenerror(){}
 function nextcontent(blob , zipnumber){
     var completeziplength = completezip.length
     completezip.push(zip.shift());
-    //completezip[completeziplength].jszip = "";
-    //completezip[completeziplength].imageurl = [""];
-    //completezip[completeziplength].imagename = [""];
+    completezip[completeziplength].jszip = "";
+    completezip[completeziplength].imageurl = [""];
+    completezip[completeziplength].imagename = [""];
     printwithTime(completezip[completeziplength].filename+".zip finish");
     //blob.close();
     isworking()
