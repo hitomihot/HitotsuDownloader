@@ -76,7 +76,6 @@ class zipmember {
         return this._filename;
     }
 
-
     set originurl(strin) {
         let text = strin.split("/");
         this._originurl = strin;
@@ -164,35 +163,23 @@ class zipmember {
                 }).then(function (s_array , clas) {
                     let temp_array = [];
                     let s_arraylength = s_array.length;
-                    let size = 99;
+                    let size = 100;
                     let foloop = 0;
                     while (s_arraylength > 0){
-                        temp_array.push(s_array.splice(0, size));
-                        s_arraylength = s_arraylength - size;
-                        foloop = foloop +1;
-                    }
-                    for(let i = 0 ; i < foloop ; i++ )
-                    {
-                        return clas.find_image_from_all_url(temp_array[i])
+                        return clas.find_image_from_all_s(s_array.splice(0, size-1) , clas)
                             .then(function (image_array , clas) {
-                            return clas.request_all_image(image_array);
-                            }).then(function (addtitle , clas) {
-                            return clas.make_savefile(addtitles);
+                                return clas.request_all_image(image_array);
+                            }).then(function (save_zip , clas) {
+                                return clas.make_savefile(save_zip);
                             }).catch(function(error){
                                 console.log(error);
                             });
+                        s_arraylength = s_arraylength - size;
                     }
+                    //return Promise.resolve();
                 }).catch(function(error){
                     console.log(error);
                 });
-
-
-                //request g from s
-                //then count max g
-                //then request all g
-                //then request all s from all g
-                //then set thread
-                //then request all image from all s
             }
             else if (text[3] == "g") {
                 this.get_data_from_g(this.originurl);
@@ -239,9 +226,10 @@ class zipmember {
             clas.filename = getgroup + "_" + getartist + "_" + galleryname;
 
             let maxpage = 0;
-
+            if(data.indexOf(p_url) != -1){
                 maxpage = data.split(p_url);
                 maxpage = maxpage[maxpage.length-2].split("\"")[0];
+            }
 
             let numberarray = [];
             for(i = 0 ; i <=  maxpage; i++)
@@ -265,7 +253,12 @@ class zipmember {
                 let temp_arraylength = temp_array.length;
                 for (let i = 0 ; i < temp_arraylength ; i++)
                 {
-                    s_array.push(temp_array[i]);
+                    let temp_array2dlength = temp_array[i].length;
+                    while (temp_array2dlength > 0){
+                        let temp_text = temp_array[i].splice(0 , 1);
+                        s_array.push(temp_text);
+                        temp_array2dlength = temp_array2dlength -1;
+                    }
                 }
                 deferred.resolve(s_array , clas);
             },function() {
@@ -297,7 +290,7 @@ class zipmember {
         let clas = this;
         let deferred = $.Deferred();
         let image_array = [];
-        Promise.all(g_array.map(function (fromurl) {
+        Promise.all(fromurlarray.map(function (fromurl) {
             return clas.find_image_from_s(clas.mainurl + "/s/" + fromurl);
         })).then(function(temp_array) {
             let temp_arraylength = temp_array.length;
@@ -330,22 +323,18 @@ class zipmember {
         let clas = this;
         let deferred = $.Deferred();
         let image_array = [];
-        Promise.all(g_array.map(function (fromurl) {
-            return clas.request_image(fromurl);
-        })).then(function(temp_array) {
-            let temp_arraylength = temp_array.length;
-            for (let i = 0 ; i < temp_arraylength ; i++)
-            {
-                image_array.push(temp_array[i]);
-            }
-            deferred.resolve(image_array , clas);
+        let save_zip = new JSZip();
+        Promise.all(fromurlarray.map(function (fromurl) {
+            return clas.request_image(fromurl , save_zip)
+        })).then(function() {
+            deferred.resolve(save_zip , clas);
         },function() {
             deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
         });
         return deferred.promise();
     }
 
-    request_image(fromurl) {
+    request_image(fromurl , save_zip) {
         let clas = this;
         let deferred = $.Deferred();
         let xhr = new XMLHttpRequest();
@@ -353,7 +342,7 @@ class zipmember {
             if (this.readyState == 4) {
                 if (this.status == 200 || this.status == 304) {
                     let filename = fromurl.split("/").pop();
-                    clas.jszip.file(filename, this.response, {base64: true});
+                    save_zip.file(filename, this.response, {base64: true});
                     deferred.resolve();
                 }
                 else {
@@ -365,6 +354,15 @@ class zipmember {
         xhr.responseType = 'arraybuffer';
         xhr.send();
         return deferred.promise();
+    }
+
+    make_savefile(save_zip) {
+        let clas = this;
+        let content = save_zip.generateAsync({type: "blob"})
+            .then(function (blob) {saveAs(blob, clas.filename + ".zip")})
+            .catch(function(error){
+                console.log(error);
+             });
     }
 
 
