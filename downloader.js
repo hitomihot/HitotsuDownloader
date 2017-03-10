@@ -82,10 +82,12 @@ class zipmember {
         this._mainurl = text[0] + "//" + text[2];
 
         switch (text[3]) {
-            case "s"    : this._mainid = text[5].split("-")[0];
+            case "s"    :
+                this._mainid = text[5].split("-")[0];
                 break;
             case "g"   :
-            case "mpv"  : this._mainid = text[4];
+            case "mpv"  :
+                this._mainid = text[4];
                 break;
         }
     }
@@ -135,7 +137,7 @@ class zipmember {
 
     unlock_thread() {
         let clas = this;
-            clas.threadcount = clas.threadcount - 1;
+        clas.threadcount = clas.threadcount - 1;
         return new Promise(function (resolve, reject) {
             if (clas.threadcount >= 0) {
                 resolve(clas);
@@ -156,33 +158,59 @@ class zipmember {
             let text = this.originurl.split("/");
             if (text[3] == "s") {
                 this.find_g_from_s(this)//request g from s
-                  .then(function (g_url , clas) {
-                    return clas.get_data_from_g(g_url);//then count max g and get gallery's data.
-                }).then(function (g_array , clas) {
+                    .then(function (g_url, clas) {
+                        return clas.get_data_from_g(g_url);//then count max g and get gallery's data.
+                    }).then(function (g_array, clas) {
                     return clas.find_s_from_all_g(g_array);
-                }).then(function (s_array , clas) {
+                }).then(function (s_array, clas) {
                     let temp_array = [];
                     let s_arraylength = s_array.length;
                     let size = 100;
                     let foloop = 0;
-                    while (s_arraylength > 0){
-                        return clas.find_image_from_all_s(s_array.splice(0, size-1) , clas)
-                            .then(function (image_array , clas) {
+                    while (s_arraylength > 0) {
+                        return clas.find_image_from_all_s(s_array.splice(0, size - 1), clas)
+                            .then(function (image_array, clas) {
                                 return clas.request_all_image(image_array);
-                            }).then(function (save_zip , clas) {
+                            }).then(function (save_zip, clas) {
                                 return clas.make_savefile(save_zip);
-                            }).catch(function(error){
+                            }).catch(function (error) {
                                 console.log(error);
                             });
                         s_arraylength = s_arraylength - size;
                     }
                     //return Promise.resolve();
-                }).catch(function(error){
+                }).catch(function (error) {
                     console.log(error);
                 });
             }
             else if (text[3] == "g") {
-                this.get_data_from_g(this.originurl);
+                if (this.originurl.indexOf("?p=") != -1) {
+                    this.originurl = this.originurl.split("?p=")[0];
+                    //maybe unnecessary code
+                }
+                this.get_data_from_g(this.originurl)
+                    .then(function (g_array, clas) {
+                        return clas.find_s_from_all_g(g_array);
+                    }).then(function (s_array, clas) {
+                    let temp_array = [];
+                    let s_arraylength = s_array.length;
+                    let size = 100;
+                    let foloop = 0;
+                    while (s_arraylength > 0) {
+                        return clas.find_image_from_all_s(s_array.splice(0, size - 1), clas)
+                            .then(function (image_array, clas) {
+                                return clas.request_all_image(image_array);
+                            }).then(function (save_zip, clas) {
+                                return clas.make_savefile(save_zip);
+                            }).catch(function (error) {
+                                console.log(error);
+                            });
+                        s_arraylength = s_arraylength - size;
+                    }
+                    //return Promise.resolve();
+                }).catch(function (error) {
+                    console.log(error);
+                });
             }
         }
         else {
@@ -194,9 +222,9 @@ class zipmember {
         let clas = this;
         let deferred = $.Deferred();
         let ajaxcall = $.ajax({url: clas.originurl});
-        ajaxcall.done(function(data){
-            deferred.resolve(clas.mainurl + "/g/" + clas.mainid + "/" + textsplit(data , clas.mainurl + "/g/" + clas.mainid + "/" , "/")  + "/", clas);
-        }).fail(function(error){
+        ajaxcall.done(function (data) {
+            deferred.resolve(clas.mainurl + "/g/" + clas.mainid + "/" + textsplit(data, clas.mainurl + "/g/" + clas.mainid + "/", "/") + "/", clas);
+        }).fail(function (error) {
             deferred.reject("error " + error.errorCode + ": request_g_from_s: " + clas.originurl);
         });
         return deferred.promise();
@@ -206,8 +234,8 @@ class zipmember {
         let clas = this;
         let p_url = inputurl + "?p=";
         let deferred = $.Deferred();
-        let ajaxcall = $.ajax({url: inputurl });
-        ajaxcall.done(function(data){
+        let ajaxcall = $.ajax({url: inputurl});
+        ajaxcall.done(function (data) {
             let getartist = textsplit(data, "<div id=\"td_artist:", "\"");
             let getgroup = textsplit(data, "<div id=\"td_group:", "\"");
             let galleryname = textsplit(data, "id=\"gn\">", "</h1>");
@@ -226,18 +254,17 @@ class zipmember {
             clas.filename = getgroup + "_" + getartist + "_" + galleryname;
 
             let maxpage = 0;
-            if(data.indexOf(p_url) != -1){
+            if (data.indexOf(p_url) != -1) {
                 maxpage = data.split(p_url);
-                maxpage = maxpage[maxpage.length-2].split("\"")[0];
+                maxpage = maxpage[maxpage.length - 2].split("\"")[0];
             }
 
             let numberarray = [];
-            for(i = 0 ; i <=  maxpage; i++)
-            {
+            for (i = 0; i <= maxpage; i++) {
                 numberarray[i] = p_url + i;
             }
-            deferred.resolve(numberarray , clas);
-        }).fail(function(error){
+            deferred.resolve(numberarray, clas);
+        }).fail(function (error) {
             deferred.reject("error " + error.errorCode + ": get_data_from_g: " + inputurl);
         });
         return deferred.promise();
@@ -249,21 +276,20 @@ class zipmember {
         let s_array = [];
         Promise.all(fromurlarray.map(function (fromurl) {
             return clas.find_s_from_g(fromurl);
-        })).then(function(temp_array) {
-                let temp_arraylength = temp_array.length;
-                for (let i = 0 ; i < temp_arraylength ; i++)
-                {
-                    let temp_array2dlength = temp_array[i].length;
-                    while (temp_array2dlength > 0){
-                        let temp_text = temp_array[i].splice(0 , 1);
-                        s_array.push(temp_text);
-                        temp_array2dlength = temp_array2dlength -1;
-                    }
+        })).then(function (temp_array) {
+            let temp_arraylength = temp_array.length;
+            for (let i = 0; i < temp_arraylength; i++) {
+                let temp_array2dlength = temp_array[i].length;
+                while (temp_array2dlength > 0) {
+                    let temp_text = temp_array[i].splice(0, 1);
+                    s_array.push(temp_text);
+                    temp_array2dlength = temp_array2dlength - 1;
                 }
-                deferred.resolve(s_array , clas);
-            },function() {
-                deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
-            });
+            }
+            deferred.resolve(s_array, clas);
+        }, function () {
+            deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
+        });
         return deferred.promise();
     }
 
@@ -271,122 +297,110 @@ class zipmember {
         let clas = this;
         let deferred = $.Deferred();
         let ajaxcall = $.ajax({url: fromurl});
-        ajaxcall.done(function(data){
+        ajaxcall.done(function (data) {
             let s_array = data.split(clas.mainurl + "/s/");
             s_array.shift();
             let s_arraylength = s_array.length;
-            for(let i = 0 ; i < s_arraylength ; i++)
-            {
+            for (let i = 0; i < s_arraylength; i++) {
                 s_array[i] = s_array[i].split("\"")[0];
             }
             deferred.resolve(s_array);
-        }).fail(function(error){
+        }).fail(function (error) {
             deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
         });
         return deferred.promise();
     }
 
-    find_image_from_all_s(fromurlarray){
+    find_image_from_all_s(fromurlarray) {
         let clas = this;
         let deferred = $.Deferred();
         let image_array = [];
         Promise.all(fromurlarray.map(function (fromurl) {
             return clas.find_image_from_s(clas.mainurl + "/s/" + fromurl);
-        })).then(function(temp_array) {
+        })).then(function (temp_array) {
             let temp_arraylength = temp_array.length;
-            for (let i = 0 ; i < temp_arraylength ; i++)
-            {
+            for (let i = 0; i < temp_arraylength; i++) {
                 image_array.push(temp_array[i]);
             }
-            deferred.resolve(image_array , clas);
-        },function() {
+            deferred.resolve(image_array, clas);
+        }, function () {
             deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
         });
         return deferred.promise();
     }
 
-    find_image_from_s(fromurl){
+    find_image_from_s(fromurl) {
         let clas = this;
         let deferred = $.Deferred();
         let ajaxcall = $.ajax({url: fromurl});
-        ajaxcall.done(function(data){
-            let image_url = textsplit(data, "id=\"img\"", "style");
-            image_url = textsplit(image_url, "src=\"", "\"");
+        ajaxcall.done(function (data) {
+            let image_url = [];
+            image_url[0] = textsplit(data, "id=\"img\"", "style");
+            image_url[0] = textsplit(image_url[0], "src=\"", "\"");
+            image_url[1] = textsplit(data, "return nl(\'", "\')\"");
+            image_url[1] = fromurl + "?nl=" + image_url[1];
             deferred.resolve(image_url);
-        }).fail(function(error){
+        }).fail(function (error) {
             deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
         });
         return deferred.promise();
     }
 
-    request_all_image(fromurlarray){
+    request_all_image(fromurlarray) {
         let clas = this;
         let deferred = $.Deferred();
         let image_array = [];
         let save_zip = new JSZip();
         Promise.all(fromurlarray.map(function (fromurl) {
-            return clas.request_image(fromurl , save_zip)
-        })).then(function() {
-            deferred.resolve(save_zip , clas);
-        },function() {
+            return clas.request_image(fromurl, save_zip)
+        })).then(function () {
+            deferred.resolve(save_zip, clas);
+        }, function () {
             deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
         });
         return deferred.promise();
     }
 
-    request_image(fromurl , save_zip) {
+    request_image(fromurl, save_zip) {
         let clas = this;
         let deferred = $.Deferred();
-        let xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function () {
+        let xhr1 = new XMLHttpRequest();
+        let xhr2 = new XMLHttpRequest();
+        xhr1.onreadystatechange = function () {
             if (this.readyState == 4) {
                 if (this.status == 200 || this.status == 304) {
-                    let filename = fromurl.split("/").pop();
+                    let filename = fromurl[0].split("/").pop();
                     save_zip.file(filename, this.response, {base64: true});
                     deferred.resolve();
                 }
                 else {
-                    deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
+                    clas.find_image_from_s(fromurl[1])
+                        .then(function (fromurl) {
+                            return clas.request_image(fromurl, save_zip);
+                        }).then(function () {
+                        deferred.resolve();
+                    }, function () {
+                        deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
+                    })
                 }
             }
         };
-        xhr.open('GET', proxyurl + fromurl);
-        xhr.responseType = 'arraybuffer';
-        xhr.send();
+        xhr1.open('GET', proxyurl + fromurl[0]);
+        xhr1.responseType = 'arraybuffer';
+        xhr1.send();
         return deferred.promise();
     }
 
     make_savefile(save_zip) {
         let clas = this;
         let content = save_zip.generateAsync({type: "blob"})
-            .then(function (blob) {saveAs(blob, clas.filename + ".zip")})
-            .catch(function(error){
+            .then(function (blob) {
+                saveAs(blob, clas.filename + ".zip")
+            })
+            .catch(function (error) {
                 console.log(error);
-             });
+            });
     }
-
-
-
-    
-
-    find_nexts_from_s(data, integ) {
-        let next = Number(integ) + 1;
-        let key = textsplit(data, "id=\"next\"", "\">");
-        key = textsplit(key, "href=\"", "-" + next);
-        if (key != "") {
-            return (key + "-" + next);
-        } else {
-            return "";
-            /*error*/
-        }
-    }
-
-    find_image_url(data) {
-        let text = textsplit(data, "id=\"img\"", "style");
-        text = textsplit(text, "src=\"", "\"");
-        return text;
-    }
-
 }
 
 
