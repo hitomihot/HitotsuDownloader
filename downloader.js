@@ -156,76 +156,93 @@ class zipmember {
 
         else if (this.mainurl == "https://exhentai.org" || this.mainurl == "https://e-hentai.org") {
             let text = this.originurl.split("/");
-            if (text[3] == "s") {
-                this.find_g_from_s(this)//request g from s
+                this.e_find_gp0(this.originurl)//request g from s
                     .then(function (g_url, clas) {
                         return clas.get_data_from_g(g_url);//then count max g and get gallery's data.
                     }).then(function (g_array, clas) {
                     return clas.find_s_from_all_g(g_array);
-                }).then(function (s_array, clas) {
-                    let temp_array = [];
-                    let s_arraylength = s_array.length;
-                    let size = 100;
-                    let foloop = 0;
-                    while (s_arraylength > 0) {
-                        return clas.find_image_from_all_s(s_array.splice(0, size - 1), clas)
-                            .then(function (image_array, clas) {
-                                return clas.request_all_image(image_array);
-                            }).then(function (save_zip, clas) {
-                                return clas.make_savefile(save_zip);
-                            }).catch(function (error) {
-                                console.log(error);
-                            });
-                        s_arraylength = s_arraylength - size;
-                    }
-                    //return Promise.resolve();
-                }).catch(function (error) {
-                    console.log(error);
-                });
-            }
-            else if (text[3] == "g") {
-                if (this.originurl.indexOf("?p=") != -1) {
-                    this.originurl = this.originurl.split("?p=")[0];
-                    //maybe unnecessary code
-                }
-                this.get_data_from_g(this.originurl)
-                    .then(function (g_array, clas) {
-                        return clas.find_s_from_all_g(g_array);
                     }).then(function (s_array, clas) {
-                    let temp_array = [];
-                    let s_arraylength = s_array.length;
-                    let size = 100;
-                    let foloop = 0;
-                    while (s_arraylength > 0) {
-                        return clas.find_image_from_all_s(s_array.splice(0, size - 1), clas)
-                            .then(function (image_array, clas) {
-                                return clas.request_all_image(image_array);
-                            }).then(function (save_zip, clas) {
-                                return clas.make_savefile(save_zip);
-                            }).catch(function (error) {
-                                console.log(error);
-                            });
-                        s_arraylength = s_arraylength - size;
-                    }
+                        let temp_array = [];
+                        let s_arraylength = s_array.length;
+                        let size = 100;
+                        let foloop = 0;
+                        while (s_arraylength > 0) {
+                            return clas.find_image_from_all_s(s_array.splice(0, size - 1), clas)
+                                .then(function (image_array, clas) {
+                                    return clas.request_all_image(image_array);
+                                }).then(function (save_zip, clas) {
+                                    return clas.make_savefile(save_zip);
+                                }).catch(function (error) {
+                                    console.log(error);
+                                });
+                            s_arraylength = s_arraylength - size;
+                        }
                     //return Promise.resolve();
-                }).catch(function (error) {
+                    }).catch(function (error) {
                     console.log(error);
                 });
-            }
+            
         }
         else {
 
         }
     }
 
-    find_g_from_s() {
+    e_find_gp0(fromurl) {
+        //find title,artist,group from e_hen or ex_hen
         let clas = this;
         let deferred = $.Deferred();
-        let ajaxcall = $.ajax({url: clas.originurl});
+        let temp_text = fromurl.split("/");
+        let g_url = "";
+        if (temp_text[3] == "s") {
+            let temp_gallery = temp_text[0] +"//"+ temp_text[2] + "/g/";//galleryURL[0,1,2,3] need3
+            let temp_id = temp_text.pop();
+            temp_id = temp_id.split("-")[0];
+            let temp_search_keyword = temp_gallery + temp_id + "/";//galleryURL[0,1,2,3,4] need2
+
+            let ajaxcall = $.ajax({url: fromurl});
+            ajaxcall.done(function (data) {
+                let temp_key = textsplit(data , temp_search_keyword , "/");
+                if(temp_key != ""){
+                    deferred.resolve(temp_search_keyword + temp_key + "/" , clas);//galleryURL[0,1,2,3,4,5] need1
+                }
+                else{
+                    deferred.reject("error " + error.errorCode + ": e_find_g_from_s: " + fromurl);
+                }
+            }).fail(function (error) {
+                deferred.reject("error " + error.errorCode + ": e_find_g_from_s: " + fromurl);
+            });
+        }
+        else if(temp_text[3] == "g"){
+            g_url = temp_text[0]+"//"+temp_text[2]+"/"+temp_text[3]+"/"+temp_text[4]+"/"+temp_text[5] + "/?p=0";//galleryURL[0,1,2,3,4,5,6] full_url
+            deferred.resolve(g_url , clas);
+        }
+        else{
+            deferred.reject("error " + error.errorCode + ":   e_find_gp0: " + fromurl);
+        }
+        return deferred.promise();
+    }
+
+    find_g_from_s(fromurl) {
+        let clas = this;
+        let deferred = $.Deferred();
+        let temp_text = fromurl.split("/");
+        let temp_gallery = temp_text[0] +"//"+ temp_text[2] + "/g/";//galleryURL[0,1,2,3] need3
+        let temp_id = temp_text.pop();
+        temp_id = temp_id.split("-")[0];
+        let temp_search_keyword = temp_gallery + temp_id + "/";//galleryURL[0,1,2,3,4] need2
+
+        let ajaxcall = $.ajax({url: fromurl});
         ajaxcall.done(function (data) {
-            deferred.resolve(clas.mainurl + "/g/" + clas.mainid + "/" + textsplit(data, clas.mainurl + "/g/" + clas.mainid + "/", "/") + "/", clas);
+            let temp_key = textsplit(data , temp_search_keyword , "/");
+            if(temp_key != ""){
+                deferred.resolve(temp_search_keyword + temp_key + "/" , clas);//galleryURL[0,1,2,3,4,5] need1
+            }
+            else{
+                deferred.reject("error " + error.errorCode + ": e_find_g_from_s: " + fromurl);
+            }
         }).fail(function (error) {
-            deferred.reject("error " + error.errorCode + ": request_g_from_s: " + clas.originurl);
+            deferred.reject("error " + error.errorCode + ": e_find_g_from_s: " + fromurl);
         });
         return deferred.promise();
     }
