@@ -148,276 +148,320 @@ class zipmember {
         });
     };
 
-    start() {
-        if (this.mainurl == "https://hitomi.la") {
+    start(cla) {
+        let clas = cla;
+        if (clas.mainurl == "https://hitomi.la") {
             //setthreadlock(3);
             //call gallerynumber.js , all tag js
         }
 
-        else if (this.mainurl == "https://exhentai.org" || this.mainurl == "https://e-hentai.org") {
-            let text = this.originurl.split("/");
-                this.e_find_gp0(this.originurl)//request g from s
-                    .then(function (g_url, clas) {
-                        return clas.get_data_from_g(g_url);//then count max g and get gallery's data.
-                    }).then(function (g_array, clas) {
-                    return clas.find_s_from_all_g(g_array);
-                    }).then(function (s_array, clas) {
-                        let temp_array = [];
-                        let s_arraylength = s_array.length;
-                        let size = 100;
-                        let foloop = 0;
-                        while (s_arraylength > 0) {
-                            return clas.find_image_from_all_s(s_array.splice(0, size - 1), clas)
-                                .then(function (image_array, clas) {
-                                    return clas.request_all_image(image_array);
-                                }).then(function (save_zip, clas) {
-                                    return clas.make_savefile(save_zip);
-                                }).catch(function (error) {
-                                    console.log(error);
-                                });
-                            s_arraylength = s_arraylength - size;
-                        }
-                    //return Promise.resolve();
-                    }).catch(function (error) {
-                    console.log(error);
+        else if (clas.mainurl == "https://exhentai.org" || clas.mainurl == "https://e-hentai.org") {
+            let text = clas.originurl.split("/");
+            if (text[3] == "s") {
+                clas.e_set_gallery_info(clas.originurl, clas).then(function (info_array) {
+                    return clas.e_set_download(info_array[0], info_array[1], 100, 10, clas);
                 });
-            
+            }
         }
         else {
 
         }
     }
 
+    e_set_gallery_info(fromurl, clas) {
+        let tempfilename = "";
+        let call_buffer = "";
+
+        return clas.e_find_gp0(fromurl).then(function (fromurl) {
+            return clas.e_find_gallery_info(fromurl);
+        }).then(function (filename, g_array) {
+            tempfilename = filename;
+            return clas.e_find_s_from_all_g(g_array, clas.e_find_s_from_g);
+        }).then(function (s_array) {
+            return [tempfilename, s_array];
+        });
+    }
+
     e_find_gp0(fromurl) {
         //find title,artist,group from e_hen or ex_hen
-        let clas = this;
         let deferred = $.Deferred();
         let temp_text = fromurl.split("/");
         let g_url = "";
         if (temp_text[3] == "s") {
-            let temp_gallery = temp_text[0] +"//"+ temp_text[2] + "/g/";//galleryURL[0,1,2,3] need3
+            let temp_gallery = temp_text[0] + "//" + temp_text[2] + "/g/";//galleryURL[0,1,2,3] need3
             let temp_id = temp_text.pop();
             temp_id = temp_id.split("-")[0];
             let temp_search_keyword = temp_gallery + temp_id + "/";//galleryURL[0,1,2,3,4] need2
 
-            let ajaxcall = $.ajax({url: fromurl});
-            ajaxcall.done(function (data) {
-                let temp_key = textsplit(data , temp_search_keyword , "/");
-                if(temp_key != ""){
-                    deferred.resolve(temp_search_keyword + temp_key + "/" , clas);//galleryURL[0,1,2,3,4,5] need1
+            ajax_call(fromurl).done(function (data) {
+                let temp_key = textsplit(data, temp_search_keyword, "/");
+                if (temp_key != "") {
+                    deferred.resolve(temp_search_keyword + temp_key + "/?p=0");//galleryURL[0,1,2,3,4,5,6] full_url
                 }
-                else{
-                    deferred.reject("error " + error.errorCode + ": e_find_g_from_s: " + fromurl);
+                else {
+                    console.log("error " + ":   e_find_gp0: " + fromurl);
+                    deferred.reject("error " + ":   e_find_gp0: " + fromurl);
                 }
-            }).fail(function (error) {
-                deferred.reject("error " + error.errorCode + ": e_find_g_from_s: " + fromurl);
             });
         }
-        else if(temp_text[3] == "g"){
-            g_url = temp_text[0]+"//"+temp_text[2]+"/"+temp_text[3]+"/"+temp_text[4]+"/"+temp_text[5] + "/?p=0";//galleryURL[0,1,2,3,4,5,6] full_url
-            deferred.resolve(g_url , clas);
+        else if (temp_text[3] == "g") {
+            g_url = temp_text[0] + "//" + temp_text[2] + "/" + temp_text[3] + "/" + temp_text[4] + "/" + temp_text[5] + "/?p=0";//galleryURL[0,1,2,3,4,5,6] full_url
+            deferred.resolve(g_url);
         }
-        else{
-            deferred.reject("error " + error.errorCode + ":   e_find_gp0: " + fromurl);
+        else {
+            console.log("error " + ":   e_find_gp0: " + fromurl);
+            deferred.reject("error " + ":   e_find_gp0: " + fromurl);
         }
         return deferred.promise();
     }
 
-    find_g_from_s(fromurl) {
-        let clas = this;
+    e_find_gallery_info(fromurl) {
         let deferred = $.Deferred();
-        let temp_text = fromurl.split("/");
-        let temp_gallery = temp_text[0] +"//"+ temp_text[2] + "/g/";//galleryURL[0,1,2,3] need3
-        let temp_id = temp_text.pop();
-        temp_id = temp_id.split("-")[0];
-        let temp_search_keyword = temp_gallery + temp_id + "/";//galleryURL[0,1,2,3,4] need2
-
-        let ajaxcall = $.ajax({url: fromurl});
-        ajaxcall.done(function (data) {
-            let temp_key = textsplit(data , temp_search_keyword , "/");
-            if(temp_key != ""){
-                deferred.resolve(temp_search_keyword + temp_key + "/" , clas);//galleryURL[0,1,2,3,4,5] need1
-            }
-            else{
-                deferred.reject("error " + error.errorCode + ": e_find_g_from_s: " + fromurl);
-            }
-        }).fail(function (error) {
-            deferred.reject("error " + error.errorCode + ": e_find_g_from_s: " + fromurl);
-        });
-        return deferred.promise();
-    }
-
-    get_data_from_g(inputurl) {
-        let clas = this;
-        let p_url = inputurl + "?p=";
-        let deferred = $.Deferred();
-        let ajaxcall = $.ajax({url: inputurl});
-        ajaxcall.done(function (data) {
+        let filename = "";
+        ajax_call(fromurl).done(function (data) {
             let getartist = textsplit(data, "<div id=\"td_artist:", "\"");
+            if (getartist == "") {
+                getartist = "N/A";
+            }
             let getgroup = textsplit(data, "<div id=\"td_group:", "\"");
+            if (getgroup == "") {
+                getgroup = "N/A";
+            }
             let galleryname = textsplit(data, "id=\"gn\">", "</h1>");
-            let gallerysize = "";
-
-            let i = 0;
-            while ((i = galleryname.indexOf("[")) != -1) {
-                galleryname = galleryname.substring(0, i - 1) + galleryname.substring(galleryname.indexOf("]") + 1, galleryname.length);
+            if (galleryname == "") {
+                galleryname = fromurl.split("/")[5];
             }
-            while ((i = galleryname.indexOf("(")) != -1) {
-                galleryname = galleryname.substring(0, i - 1) + galleryname.substring(galleryname.indexOf(")") + 1, galleryname.length);
+            else {
+                var i = 0;
+                while ((i = galleryname.indexOf("[")) != -1) {
+                    galleryname = galleryname.substring(0, i - 1) + galleryname.substring(galleryname.indexOf("]") + 1, galleryname.length);
+                }
+                while ((i = galleryname.indexOf("(")) != -1) {
+                    galleryname = galleryname.substring(0, i - 1) + galleryname.substring(galleryname.indexOf(")") + 1, galleryname.length);
+                }
+                while ((i = galleryname.indexOf("{")) != -1) {
+                    galleryname = galleryname.substring(0, i - 1) + galleryname.substring(galleryname.indexOf("}") + 1, galleryname.length);
+                }
+                //this code maybe problem when real_title have [],{},(). cause cannot evaluate added text or original title
             }
-            while ((i = galleryname.indexOf("{")) != -1) {
-                galleryname = galleryname.substring(0, i - 1) + galleryname.substring(galleryname.indexOf("}") + 1, galleryname.length);
-            }//this code maybe problem when title have [],{},(). cause cannot evaluate added text or original title
-            clas.filename = getgroup + "_" + getartist + "_" + galleryname;
 
-            let maxpage = 0;
-            if (data.indexOf(p_url) != -1) {
-                maxpage = data.split(p_url);
+            filename = getgroup + "_" + getartist + "_" + galleryname;
+            let temp_text = fromurl.slice(0, -1);
+            let g_array = [];
+            if (data.indexOf(temp_text) != -1) {
+                let maxpage = data.split(temp_text);
                 maxpage = maxpage[maxpage.length - 2].split("\"")[0];
-            }
-
-            let numberarray = [];
-            for (i = 0; i <= maxpage; i++) {
-                numberarray[i] = p_url + i;
-            }
-            deferred.resolve(numberarray, clas);
-        }).fail(function (error) {
-            deferred.reject("error " + error.errorCode + ": get_data_from_g: " + inputurl);
-        });
-        return deferred.promise();
-    }
-
-    find_s_from_all_g(fromurlarray) {
-        let clas = this;
-        let deferred = $.Deferred();
-        let s_array = [];
-        Promise.all(fromurlarray.map(function (fromurl) {
-            return clas.find_s_from_g(fromurl);
-        })).then(function (temp_array) {
-            let temp_arraylength = temp_array.length;
-            for (let i = 0; i < temp_arraylength; i++) {
-                let temp_array2dlength = temp_array[i].length;
-                while (temp_array2dlength > 0) {
-                    let temp_text = temp_array[i].splice(0, 1);
-                    s_array.push(temp_text);
-                    temp_array2dlength = temp_array2dlength - 1;
+                for (var i = 0; i <= maxpage; i++) {
+                    g_array[i] = temp_text + i;
                 }
             }
-            deferred.resolve(s_array, clas);
-        }, function () {
-            deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
+            else {
+                g_array[0] = fromurl;
+            }
+
+            deferred.resolve(filename, g_array);
         });
         return deferred.promise();
     }
 
-    find_s_from_g(fromurl) {
-        let clas = this;
+    e_find_s_from_all_g(fromurlarray, loop_func) {
         let deferred = $.Deferred();
-        let ajaxcall = $.ajax({url: fromurl});
-        ajaxcall.done(function (data) {
-            let s_array = data.split(clas.mainurl + "/s/");
+        let s_array = [];
+        promis_map(fromurlarray, loop_func , 5)
+            .then(function (retur_array) {
+                let temp_arraylength = retur_array.length;
+                for (let i = 0; i < temp_arraylength; i++) {
+                    let temp_array2dlength = retur_array[i].length;
+                    while (temp_array2dlength > 0) {
+                        let temp_text = retur_array[i].splice(0, 1);
+                        s_array.push(temp_text);
+                        temp_array2dlength = temp_array2dlength - 1;
+                    }
+                }
+                deferred.resolve(s_array);
+            }, function () {
+                console.log("error " + ":  e_find_s_from_all_g: " + fromurl);
+                deferred.reject("error " + ":  e_find_s_from_all_g: " + fromurl);
+            });
+        return deferred.promise();
+    }
+
+    e_find_s_from_g(fromurl) {
+        let deferred = $.Deferred();
+        let mainurl = fromurl.split("/");
+        mainurl = mainurl[0] + "//" + mainurl[2] + "/s/";
+        ajax_call(fromurl).done(function (data) {
+            let s_array = data.split(mainurl);
             s_array.shift();
             let s_arraylength = s_array.length;
             for (let i = 0; i < s_arraylength; i++) {
-                s_array[i] = s_array[i].split("\"")[0];
+                s_array[i] = mainurl + s_array[i].split("\"")[0];
             }
             deferred.resolve(s_array);
-        }).fail(function (error) {
-            deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
         });
         return deferred.promise();
     }
 
-    find_image_from_all_s(fromurlarray) {
-        let clas = this;
+    e_set_download(filename, s_array, sync_count1, sync_count2, clas) {
+        //let deferred = $.Deferred();
+        let s_arraylength = s_array.length;
+        let count1_buffer = [];
+        let count2_buffer = [];
+        let counter1_2 = 0;
+        let add_number = 0;
+        let save_zip = "";
+        /*
+}*/
+        return clas.e_find_image_from_all_s(s_array , clas.e_find_image_from_s)
+            .then(function (image_array) {
+                while (s_arraylength > 0) {
+                    count1_buffer.push(image_array.splice(0, sync_count1));
+                    s_arraylength = s_arraylength - sync_count1;
+                }
+            return Promise.mapSeries(count1_buffer , function(image_subarray){
+                add_number = add_number+1;
+                return clas.e_request_all_image(image_subarray , new JSZip() , clas.request_image , clas.e_find_image_from_s)
+                    .then(function (save_zip) {
+                    return clas.make_savefile(save_zip , filename + "_" + add_number);
+                });
+            });
+
+        });
+
+
+        //deferred.resolve();
+        /*
+         while (s_arraylength > 0) {
+         save_zip = new JSZip();
+         counter1_2 = sync_count1;
+         count1_buffer = s_array.splice(0, sync_count1);
+         add_number = add_number + 1;
+
+
+
+
+
+
+
+         while(counter1_2 > 0){
+         count2_buffer = count1_buffer.splice(0 , sync_count2);
+         clas.e_find_image_from_all_s(count2_buffer , clas.e_find_image_from_s)
+         .then(function(fromurlarray){
+         counter1_2 = counter1_2 - sync_count2;
+         return clas.e_request_all_image(fromurlarray , save_zip , clas.request_image , clas.e_find_image_from_s);
+         }).then(function () {
+         if(counter1_2 <= 0){
+         return clas.make_savefile(save_zip , filename + "-" + add_number);
+         s_arraylength = s_arraylength - size;
+         }
+         })
+         }
+         }
+         if(s_arraylength == 0) {
+         deferred.resolve();
+         }
+         else{
+         deferred.reject();
+         }
+
+         return clas.find_image_from_info()
+         .then(function (image_array, clas) {
+         return clas.request_all_image(image_array , error_function);
+         }).then(function (save_zip, clas) {
+         return clas.make_savefile(save_zip , filename);
+         }).catch(function (error) {
+         console.log(error);
+         });
+         */
+        //return deferred.promise();
+    }
+
+    e_find_image_from_all_s(fromurlarray, loop_func) {
         let deferred = $.Deferred();
         let image_array = [];
-        Promise.all(fromurlarray.map(function (fromurl) {
-            return clas.find_image_from_s(clas.mainurl + "/s/" + fromurl);
-        })).then(function (temp_array) {
+        promis_map(fromurlarray, loop_func , 5).then(function (temp_array) {
             let temp_arraylength = temp_array.length;
             for (let i = 0; i < temp_arraylength; i++) {
                 image_array.push(temp_array[i]);
             }
-            deferred.resolve(image_array, clas);
-        }, function () {
-            deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
+            deferred.resolve(image_array);
+        }, function (error) {
+            deferred.reject("error " + error.errorCode + ": e_find_image_from_all_s: " + fromurl);
         });
         return deferred.promise();
     }
 
-    find_image_from_s(fromurl) {
-        let clas = this;
+    e_find_image_from_s(fromurl) {
         let deferred = $.Deferred();
-        let ajaxcall = $.ajax({url: fromurl});
-        ajaxcall.done(function (data) {
+        ajax_call(fromurl).done(function (data) {
             let image_url = [];
             image_url[0] = textsplit(data, "id=\"img\"", "style");
             image_url[0] = textsplit(image_url[0], "src=\"", "\"");
             image_url[1] = textsplit(data, "return nl(\'", "\')\"");
             image_url[1] = fromurl + "?nl=" + image_url[1];
             deferred.resolve(image_url);
-        }).fail(function (error) {
-            deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
+        })
+
+        return deferred.promise();
+    }
+
+    e_request_all_image(fromurlarray, save_zip, loop_func, error_function) {
+        return new Promise(function (resolve, reject) {
+            return promis_map(fromurlarray, function(fromurl){return loop_func(fromurl , save_zip , loop_func , error_function)} , 5)
+                .then(function () {resolve(save_zip);
+            });
         });
-        return deferred.promise();
     }
 
-    request_all_image(fromurlarray) {
-        let clas = this;
-        let deferred = $.Deferred();
-        let image_array = [];
-        let save_zip = new JSZip();
-        Promise.all(fromurlarray.map(function (fromurl) {
-            return clas.request_image(fromurl, save_zip)
-        })).then(function () {
-            deferred.resolve(save_zip, clas);
-        }, function () {
-            deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
+    request_image(fromurl, save_zip, self_func , error_function) {
+        return new Promise(function (resolve, reject) {
+            let xhr1 = new XMLHttpRequest();
+            xhr1.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200 || this.status == 304) {
+                        let filename = fromurl[0].split("/").pop();
+                        save_zip.file(filename, this.response, {base64: true});
+                        resolve("success");
+                    }
+                    else {
+                        if (error_function != "") {
+                            error_function(fromurl[1])
+                                .then(function (fromurl) {
+                                    return self_func(fromurl, save_zip);
+                                }).then(function () {
+                                resolve("success");
+                            }, function () {
+                                reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
+                            });
+                        }
+                        else {
+                            return self_func(fromurl, save_zip)
+                                .then(function () {
+                                    resolve("success");
+                                }, function () {
+                                    reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
+                                });
+                        }
+                    }
+                }
+            };
+            xhr1.open('GET', proxyurl + fromurl[0]);
+            xhr1.responseType = 'arraybuffer';
+            xhr1.send();
         });
-        return deferred.promise();
     }
 
-    request_image(fromurl, save_zip) {
-        let clas = this;
-        let deferred = $.Deferred();
-        let xhr1 = new XMLHttpRequest();
-        let xhr2 = new XMLHttpRequest();
-        xhr1.onreadystatechange = function () {
-            if (this.readyState == 4) {
-                if (this.status == 200 || this.status == 304) {
-                    let filename = fromurl[0].split("/").pop();
-                    save_zip.file(filename, this.response, {base64: true});
-                    deferred.resolve();
-                }
-                else {
-                    clas.find_image_from_s(fromurl[1])
-                        .then(function (fromurl) {
-                            return clas.request_image(fromurl, save_zip);
-                        }).then(function () {
-                        deferred.resolve();
-                    }, function () {
-                        deferred.reject("error " + error.errorCode + ":  find_s_from_g: " + fromurl);
-                    })
-                }
-            }
-        };
-        xhr1.open('GET', proxyurl + fromurl[0]);
-        xhr1.responseType = 'arraybuffer';
-        xhr1.send();
-        return deferred.promise();
-    }
-
-    make_savefile(save_zip) {
+    make_savefile(save_zip, filename) {
         let clas = this;
         let content = save_zip.generateAsync({type: "blob"})
             .then(function (blob) {
-                saveAs(blob, clas.filename + ".zip")
+                saveAs(blob, filename + ".zip")
             })
             .catch(function (error) {
                 console.log(error);
             });
     }
+
 }
 
 
@@ -457,7 +501,7 @@ function download_get(urls) {
 
 function nextstart() {
     if (zip.length > 0) {
-        zip[0].start();
+        zip[0].start(zip[0]);
     }
     else if (all_url_stack != "") {
         download_get(all_url_stack);
@@ -480,6 +524,47 @@ function textsplit(data, sp1, sp2) {
         return "";
     }
 }
+
+function e_request_image_adapter(fromurl, save_zip, cla) {
+
+}
+
+function ajax_call(fromurl) {
+    return $.ajax({url: fromurl}).fail(function (error) {
+        console.log("error " + error.errorCode + ":  ajax_call: " + fromurl);
+    });
+}
+
+function promis_all(loop_array, loop_func) {
+    return Promise.all(loop_array.map(loop_func))
+        .then(function (retur_array) {
+            return new Promise(function (resolve, reject) {
+                if (retur_array != "") {
+                    resolve(retur_array);
+                }
+                else {
+                    reject("error " + ":  promis_all: " + loop_array + loop_func);
+                    console.log("error " + ":  promis_all: " + loop_array + loop_func);
+                }
+            });
+        })
+}
+
+function promis_map(loop_array, loop_func, max_async) {
+    return new Promise(function (resolve, reject) {
+        return Promise.map(loop_array, loop_func, {concurrency: max_async})
+        .then(function (retur_array) {
+                if (retur_array != "") {
+                    resolve(retur_array);
+                }
+                else {
+                    reject("error " + ":  promis_map: " + loop_array + loop_func);
+                    console.log("error " + ":  promis_map: " + loop_array + loop_func);
+                }
+            });
+        });
+}
+
 
 
 
