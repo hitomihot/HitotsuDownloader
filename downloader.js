@@ -148,8 +148,8 @@ class zipmember {
         });
     };
 
-    start(cla) {
-        let clas = cla;
+    start() {
+        let clas = this;
         if (clas.mainurl == "https://hitomi.la") {
             //setthreadlock(3);
             //call gallerynumber.js , all tag js
@@ -157,17 +157,12 @@ class zipmember {
 
         else if (clas.mainurl == "https://exhentai.org" || clas.mainurl == "https://e-hentai.org") {
             let text = clas.originurl.split("/");
-            if (text[3] == "s") {
-                clas.e_set_gallery_info(clas.originurl, clas).then(function (info_array) {
-                    return clas.e_set_download(info_array[0], info_array[1], 100, clas);
-                }).then(function () {
-                    completezip.push(zip.shift());
-                    nextstart();
-                });
-            }
-        }
-        else {
-
+            clas.e_set_gallery_info(clas.originurl, clas).then(function (info_array) {
+                return clas.e_set_download(info_array[0], info_array[1], 100, clas);
+            }).then(function () {
+                completezip.push(zip.shift());
+                nextstart();
+            });
         }
     }
 
@@ -315,8 +310,30 @@ class zipmember {
     e_set_download(filename, s_array, sync_count1, clas) {
         return new Promise(function (resolve, reject) {
             let s_arraylength = s_array.length;
-            let count1_buffer = [];
+            let temp_buffer = [];
             let add_number = 0;
+            while (s_arraylength > 0) {
+                temp_buffer.push(s_array.splice(0, sync_count1));
+                s_arraylength = s_arraylength - sync_count1;
+            }
+
+            return Promise.mapSeries(temp_buffer , function (s_subarray) {
+                return clas.e_find_image_from_all_s(s_subarray, clas.e_find_image_from_s)
+                    .then(function (image_array) {
+                        add_number = add_number + 1;
+                        return clas.e_request_all_image(image_array, new JSZip(), clas.request_image, clas.e_find_image_from_s)
+                            .then(function (save_zip) {
+                                return clas.make_savefile(save_zip, filename + "_" + add_number);
+                            }).then(function () {
+                                resolve("success");
+                            });
+                    }).catch(function () {
+                        console.log("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
+                        reject("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
+                    });
+            })
+
+            /*
             return clas.e_find_image_from_all_s(s_array, clas.e_find_image_from_s)
                 .then(function (image_array) {
                     while (s_arraylength > 0) {
@@ -337,7 +354,7 @@ class zipmember {
                     console.log("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
                     reject("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
                 });
-
+*/
         });
     }
 
