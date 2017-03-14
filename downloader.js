@@ -7,6 +7,8 @@ const subDomainList = ["la", "aa", "ba"];
 const callPerServer = 2;
 const download_array = [];
 const proxyurl = "http://localhost:443/";
+const h_gallery = "https://hitomi.la/galleries/";
+const h_reader = "https://hitomi.la/reader/";
 
 download_array[0] = function download_html(zipnumber, passlockcount) {
     download_hitomi_html(zipnumber, passlockcount);
@@ -151,8 +153,15 @@ class zipmember {
     start() {
         let clas = this;
         if (clas.mainurl == "https://hitomi.la") {
-            //setthreadlock(3);
-            //call gallerynumber.js , all tag js
+            clas.h_set_gallery_info(clas.originurl, clas).then(function (info_array) {
+                return clas.h_set_download(info_array[0], info_array[1], 100, clas);
+                }).then(function () {
+                completezip.push(zip.shift());
+                nextstart();
+            }).catch(function () {
+                errorzip.push(zip.shift());
+                nextstart();
+            });
         }
 
         else if (clas.mainurl == "https://exhentai.org" || clas.mainurl == "https://e-hentai.org") {
@@ -162,14 +171,132 @@ class zipmember {
             }).then(function () {
                 completezip.push(zip.shift());
                 nextstart();
+            }).catch(function () {
+                errorzip.push(zip.shift());
+                nextstart();
             });
         }
+    }
+
+    h_set_gallery_info(fromurl, clas) {
+        return new Promise(function (resolve, reject) {
+            let tempfilename = "";
+            let tempid = "";
+            clas.h_find_gallery_info(fromurl)
+                .then(function (temp_array) {
+                    tempfilename = temp_array[0];
+                    tempid = temp_array[1];
+                    return clas.h_get_gallery_js(temp_array[1], temp_array[2]);
+                }).then(function (image_array) {
+                    resolve([tempfilename, image_array]);
+                }).catch(function (error) {
+                    console.log(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
+                    reject(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
+                });
+        });
+    }
+
+    h_find_gallery_info(fromurl) {
+        return new Promise(function (resolve, reject) {
+            let tempid = fromurl.split(".html")[0].split("/")[4];
+            let tempname = "";
+            let temp_title = "";
+            let temp_artist = "";
+            let temp_group = "";
+
+            ajax_call(h_gallery + tempid + ".html")
+                .then(function (data) {
+                    let text1 = textsplit(data, "dj-gallery", "date");
+
+                    temp_title = textsplit(text1, "h1>", "</h1");
+                    temp_title = textsplit(temp_title, ".html\">", "</a");
+                    if (temp_title == "") {
+                        temp_title = tempid;
+                    }
+
+                    temp_artist = textsplit(text1, "h2>", "</h2");
+                    temp_artist = textsplit(temp_artist, ".html\">", "</a");
+                    if (temp_artist == "") {
+                        temp_artist = "N/A";
+                    }
+
+
+                    temp_group = textsplit(text1, "td>Group</td", "</td");
+                    temp_group = textsplit(temp_group, ".html\">", "</a");
+                    if (temp_group == "") {
+                        temp_group = "N/A";
+                    }
+                    tempname = temp_group + "_" + temp_artist + "_" + temp_title;
+                    resolve([tempname, tempid, h_gallery + tempid + ".js"]);
+                }, function () {
+                    tempname = "N/A_N/A_" + tempid;
+                    resolve([tempname, tempid, h_gallery + tempid + ".js"]);
+                }).catch(function () {
+                console.log("error " + ":    h_find_gallery_info: " + fromurl);
+                reject("error " + ":    h_find_gallery_info: " + fromurl);
+            })
+        });
+    }
+
+    h_get_gallery_js(galleryid, fromurl) {
+        return new Promise(function (resolve, reject) {
+            let temp_array = [];
+            let subDomainListlength = subDomainList.length;
+            ajax_call(fromurl).then(function (data) {
+                $.each(galleryinfo, function (i, image) {
+                    temp_array[i] = [];
+                    temp_array[i][0] = "https://" + subDomainList[i % subDomainListlength] + ".hitomi.la/galleries/" + galleryid + "/" + image.name;
+                    temp_array[i][1] = temp_array[i][0];
+                });
+                resolve(temp_array);
+            }).catch(function (error) {
+                console.log(error + ":  h_get_gallery_json: " + galleryid + "\n\n" + fromurl);
+                reject(error + ":  h_get_gallery_json: " + galleryid + "\n\n" + fromurl);
+            });
+        })
+    }
+
+    h_set_download(filename, image_array, sync_count1, clas) {
+        return new Promise(function (resolve, reject) {
+            let image_arraylength = image_array.length;
+            let temp_buffer = [];
+            let add_number = 0;
+            while (image_arraylength > 0) {
+                temp_buffer.push(image_array.splice(0, sync_count1));
+                image_arraylength = image_arraylength - sync_count1;
+            }
+
+            return Promise.mapSeries(temp_buffer, function (image_subarray) {
+                return clas.h_request_all_image(image_subarray, new JSZip(), clas.request_image, "")
+                    .then(function (save_zip) {
+                        return clas.make_savefile(save_zip, filename + "_" + add_number);
+                    }).then(function () {
+                        resolve("success");
+                    });
+            }).catch(function () {
+                console.log("error " + ":  h_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
+                reject("error " + ":  h_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
+            });
+        });
+    }
+
+    h_request_all_image(fromurlarray, save_zip, loop_func, error_function) {
+        return new Promise(function (resolve, reject) {
+            return promis_map(fromurlarray, function (fromurl) {
+                return loop_func(fromurl, save_zip, loop_func, error_function)
+            }, 5)
+                .then(function () {
+                    resolve(save_zip);
+                }).catch(function () {
+                    console.log("error " + ":  h_request_all_image: " + fromurlarray + "\n\n" + save_zip + "\n\n" + loop_func + "\n\n" + error_function);
+                    reject("error " + ":  h_request_all_image: " + fromurlarray + "\n\n" + save_zip + "\n\n" + loop_func + "\n\n" + error_function);
+                });
+        });
     }
 
     e_set_gallery_info(fromurl, clas) {
         return new Promise(function (resolve, reject) {
             let tempfilename = "";
-            let call_buffer = "";
             return clas.e_find_gp0(fromurl).then(function (fromurl) {
                 return clas.e_find_gallery_info(fromurl);
             }).then(function (temp_array) {
@@ -317,7 +444,7 @@ class zipmember {
                 s_arraylength = s_arraylength - sync_count1;
             }
 
-            return Promise.mapSeries(temp_buffer , function (s_subarray) {
+            return Promise.mapSeries(temp_buffer, function (s_subarray) {
                 return clas.e_find_image_from_all_s(s_subarray, clas.e_find_image_from_s)
                     .then(function (image_array) {
                         add_number = add_number + 1;
@@ -331,30 +458,7 @@ class zipmember {
                         console.log("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
                         reject("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
                     });
-            })
-
-            /*
-            return clas.e_find_image_from_all_s(s_array, clas.e_find_image_from_s)
-                .then(function (image_array) {
-                    while (s_arraylength > 0) {
-                        count1_buffer.push(image_array.splice(0, sync_count1));
-                        s_arraylength = s_arraylength - sync_count1;
-                    }
-                    return Promise.mapSeries(count1_buffer, function (image_subarray) {
-                        add_number = add_number + 1;
-                        return clas.e_request_all_image(image_subarray, new JSZip(), clas.request_image, clas.e_find_image_from_s)
-                            .then(function (save_zip) {
-                                return clas.make_savefile(save_zip, filename + "_" + add_number);
-                            }).then(function () {
-                                resolve("success");
-                            });
-                    });
-
-                }).catch(function () {
-                    console.log("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
-                    reject("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
-                });
-*/
+            });
         });
     }
 
@@ -412,7 +516,7 @@ class zipmember {
                         resolve("success");
                     }
                     else {
-                        if (error_function != "") {
+                        if ((error_function != undefined) && (error_function != "")) {//need check really effective error care function?
                             error_function(fromurl[1])
                                 .then(function (fromurl) {
                                     return self_func(fromurl, save_zip);
