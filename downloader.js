@@ -579,7 +579,7 @@ $(document).ready(function () {
 
 
     $('#getData').click(function () {
-        if (zip.length <= 0) {
+        if (Zzip.length <= 0) {
             //printwithTime("start------------");
             //var tx = db.transaction("MyObjectStore", "readwrite");
             //var store = tx.objectStore("MyObjectStore");
