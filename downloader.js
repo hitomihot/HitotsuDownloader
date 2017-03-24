@@ -10,7 +10,7 @@ let Zzip = [];
 let completezip = [];
 let errorzip = [];
 let all_url_stack = "";//lock
-let db = 0;
+let Ddb = 0;
 let tx = 0;
 let store = 0;
 
@@ -560,22 +560,22 @@ $(document).ready(function () {
     }
 
     create_opendb("url_array", 1).then(function (retur) {
-        db = retur;
+        Ddb = retur;
     });
 
-     $.ajaxPrefilter(function (options) {
-     if (options.crossDomain && jQuery.support.cors) {
-     var http = (window.location.protocol === 'http:' ? 'http:' : 'https:');
-     if (options.url.indexOf(proxyurl) != -1) {
-     options.url = options.url;
-     }
-     else {
-     options.url = proxyurl + options.url;
-     }
+    $.ajaxPrefilter(function (options) {
+        if (options.crossDomain && jQuery.support.cors) {
+            var http = (window.location.protocol === 'http:' ? 'http:' : 'https:');
+            if (options.url.indexOf(proxyurl) != -1) {
+                options.url = options.url;
+            }
+            else {
+                options.url = proxyurl + options.url;
+            }
 
-     //options.url = "http://cors.corsproxy.io/url=" + options.url;
-     }
-     });
+            //options.url = "http://cors.corsproxy.io/url=" + options.url;
+        }
+    });
 
 
     $('#getData').click(function () {
@@ -588,10 +588,10 @@ $(document).ready(function () {
             //var store = tx.objectStore("url_array");
             //store.put({id: 1, url: store.get(1) + "" });
             //download_get(store.get(1).result.url);
-            db_get_rw(db, "url_array", 1, "url").then(function (urls) {
+            db_get_rw(Ddb, "url_array", 1, "url").then(function (urls) {
                 if (urls != "") {
                     download_get(urls);
-                    db_put(db, "url_array", "", 1);
+                    db_put(Ddb, "url_array", "", 1);
                 }
                 else {
                 }
@@ -600,8 +600,8 @@ $(document).ready(function () {
     });
 
     $('#pushurl').click(function () {
-        db_get_rw(db, "url_array", 1, "url").then(function (value) {
-            db_put(db, "url_array", {url: value + window.location.href}, 1);
+        db_get_rw(Ddb, "url_array", 1, "url").then(function (value) {
+            db_put(Ddb, "url_array", {url: value + window.location.href}, 1);
         });
     });
 });
@@ -623,10 +623,10 @@ function nextstart() {
         printwithTime("start download");
     }
     else {/*end or error*/
-        db_get_ro(db, "url_array", 1, "url").then(function (urls) {
+        db_get_ro(Ddb, "url_array", 1, "url").then(function (urls) {
             if (urls != "") {
                 download_get(urls);
-                db_put(db, "url_array", {url: undefined}, 1);
+                db_put(Ddb, "url_array", "", 1);
             }
             else {
             }
@@ -692,7 +692,7 @@ function promis_map(loop_array, loop_func, max_async) {
 
 function db_get_rw(datab, schim, id, stri) {
     return new Promise(function (resolve, reject) {
-        var request = db.transaction(schim, "readwrite")
+        var request = datab.transaction(schim, "readwrite")
             .objectStore(schim)
             .get(id);
         request.onsuccess = function (event) {
@@ -712,7 +712,7 @@ function db_get_rw(datab, schim, id, stri) {
 
 function db_put(datab, schim, array, id) {
     return new Promise(function (resolve, reject) {
-        var reque = db.transaction(schim, "readwrite");
+        var reque = datab.transaction(schim, "readwrite");
         var reques = reque.objectStore(schim);
         var request = reques.put(array, id);
         request.onsuccess = function (event) {
@@ -727,7 +727,7 @@ function db_put(datab, schim, array, id) {
 
 function db_get_ro(datab, schim, id, stri) {
     return new Promise(function (resolve, reject) {
-        var request = db.transaction(schim, "readonly")
+        var request = datab.transaction(schim, "readonly")
             .objectStore(schim)
             .get(id);
         request.onsuccess = function (event) {
