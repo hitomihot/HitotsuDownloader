@@ -206,7 +206,7 @@ class zipmember {
 
             ajax_call(h_gallery + tempid + ".html")
                 .then(function (data) {
-                    let text1 = textsplit(data, "dj-gallery", "date");
+                    let text1 = textsplit(data, "-gallery", "date");
 
                     temp_title = textsplit(text1, "h1>", "</h1");
                     temp_title = textsplit(temp_title, ".html\">", "</a");
