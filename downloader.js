@@ -231,7 +231,7 @@ class zipmember {
             ajax_call(fromurl).then(function (data) {
                 $.each(galleryinfo, function (i, image) {
                     temp_array[i] = [];
-                    temp_array[i][0] = "https://" + subDomainList[i % subDomainListlength] + ".hitomi.la/galleries/" + galleryid + "/" + image.name;
+                    temp_array[i][0] = "http://" + subDomainList[i % subDomainListlength] + ".hitomi.la/galleries/" + galleryid + "/" + image.name;
                     temp_array[i][1] = temp_array[i][0];
                 });
                 resolve(temp_array);
