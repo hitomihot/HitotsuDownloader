@@ -1,38 +1,23 @@
-let zip = [];
+
+//window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+// DON'T use "var indexedDB = ..." if you're not in a function.
+// Moreover, you may need references to some window.IDB* objects:
+//window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction;
+//window.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
+
+
+let Zzip = [];
 let completezip = [];
 let errorzip = [];
 let all_url_stack = "";//lock
-let datalockcount = 0;
+let db = 0;
+let tx = 0;
+let store = 0;
+
+
 const subDomainList = ["la", "aa", "ba"];
-const callPerServer = 2;
-const download_array = [];
-const proxyurl = "http://localhost:443/";
+const proxyurl = ""; //
 const h_gallery = "https://hitomi.la/galleries/";
-const h_reader = "https://hitomi.la/reader/";
-
-download_array[0] = function download_html(zipnumber, passlockcount) {
-    download_hitomi_html(zipnumber, passlockcount);
-};
-
-download_array[1] = function download_hitomi_js(zipnumber, passlockcount) {
-    $.ajax({
-        url: 'http://localhost:443/https://hitomi.la/galleries/' + zip[zipnumber].filenumber + '.js',
-        //async:false,
-        success: function () {
-            $.each(galleryinfo, function (i, image) {
-                zip[zipnumber].pushimageurl(url_from_url(zip[zipnumber].filenumber + "/" + image.name, i));
-                zip[zipnumber].pushimagename(image.name);
-            });
-            returnlock(passlockcount).then(isworking(), thenerror());
-
-        },
-        error: function () {
-            zip[zipnumber].imageurl = ["error"];
-            zip[zipnumber].imagename = ["error"];
-            returnlock(passlockcount).then(isworking(), thenerror());
-        }
-    });
-};
 
 class zipmember {
     constructor() {
@@ -148,14 +133,14 @@ class zipmember {
                 reject("error " + ": unlock_thread: " + clas.threadcount + "," + number);
             }
         });
-    };
+    }
 
     start() {
         let clas = this;
         if (clas.mainurl == "https://hitomi.la") {
-            clas.h_set_gallery_info(clas.originurl, clas).then(function (info_array) {
+            let s = clas.h_set_gallery_info(clas.originurl, clas).then(function (info_array) {
                 return clas.h_set_download(info_array[0], info_array[1], 100, clas);
-                }).then(function () {
+            }).then(function () {
                 completezip.push(zip.shift());
                 nextstart();
             }).catch(function () {
@@ -166,15 +151,16 @@ class zipmember {
 
         else if (clas.mainurl == "https://exhentai.org" || clas.mainurl == "https://e-hentai.org") {
             let text = clas.originurl.split("/");
-            clas.e_set_gallery_info(clas.originurl, clas).then(function (info_array) {
-                return clas.e_set_download(info_array[0], info_array[1], 100, clas);
-            }).then(function () {
-                completezip.push(zip.shift());
-                nextstart();
-            }).catch(function () {
-                errorzip.push(zip.shift());
-                nextstart();
-            });
+            let s =
+                clas.e_set_gallery_info(clas.originurl, clas).then(function (info_array) {
+                    return clas.e_set_download(info_array[0], info_array[1], 100, clas);
+                }).then(function () {
+                    completezip.push(zip.shift());
+                    nextstart();
+                }).catch(function () {
+                    errorzip.push(zip.shift());
+                    nextstart();
+                });
         }
     }
 
@@ -188,11 +174,11 @@ class zipmember {
                     tempid = temp_array[1];
                     return clas.h_get_gallery_js(temp_array[1], temp_array[2]);
                 }).then(function (image_array) {
-                    resolve([tempfilename, image_array]);
-                }).catch(function (error) {
-                    console.log(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
-                    reject(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
-                });
+                resolve([tempfilename, image_array]);
+            }).catch(function (error) {
+                console.log(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
+                reject(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
+            });
         });
     }
 
@@ -234,7 +220,7 @@ class zipmember {
                 }).catch(function () {
                 console.log("error " + ":    h_find_gallery_info: " + fromurl);
                 reject("error " + ":    h_find_gallery_info: " + fromurl);
-            })
+            });
         });
     }
 
@@ -253,7 +239,7 @@ class zipmember {
                 console.log(error + ":  h_get_gallery_json: " + galleryid + "\n\n" + fromurl);
                 reject(error + ":  h_get_gallery_json: " + galleryid + "\n\n" + fromurl);
             });
-        })
+        });
     }
 
     h_set_download(filename, image_array, sync_count1, clas) {
@@ -283,7 +269,7 @@ class zipmember {
     h_request_all_image(fromurlarray, save_zip, loop_func, error_function) {
         return new Promise(function (resolve, reject) {
             return promis_map(fromurlarray, function (fromurl) {
-                return loop_func(fromurl, save_zip, loop_func, error_function)
+                return loop_func(fromurl, save_zip, loop_func, error_function);
             }, 5)
                 .then(function () {
                     resolve(save_zip);
@@ -423,7 +409,8 @@ class zipmember {
             let mainurl = fromurl.split("/");
             mainurl = mainurl[0] + "//" + mainurl[2] + "/s/";
             return ajax_call(fromurl).then(function (data) {
-                let s_array = data.split(mainurl);
+                let s_array = textsplit(data, "id=\"gdt\">", "class=\"c\">");
+                s_array = s_array.split(mainurl);
                 s_array.shift();
                 let s_arraylength = s_array.length;
                 for (let i = 0; i < s_arraylength; i++) {
@@ -487,14 +474,14 @@ class zipmember {
                 image_url[1] = textsplit(data, "return nl(\'", "\')\"");
                 image_url[1] = fromurl + "?nl=" + image_url[1];
                 resolve(image_url);
-            })
+            });
         });
     }
 
     e_request_all_image(fromurlarray, save_zip, loop_func, error_function) {
         return new Promise(function (resolve, reject) {
             return promis_map(fromurlarray, function (fromurl) {
-                return loop_func(fromurl, save_zip, loop_func, error_function)
+                return loop_func(fromurl, save_zip, loop_func, error_function);
             }, 5)
                 .then(function () {
                     resolve(save_zip);
@@ -550,6 +537,7 @@ class zipmember {
             let content = save_zip.generateAsync({type: "blob"})
                 .then(function (blob) {
                     saveAs(blob, filename + ".zip");
+                    printwithTime("download " + filename + ".zip finish");
                     resolve("success");
                 })
                 .catch(function () {
@@ -563,25 +551,58 @@ class zipmember {
 
 
 $(document).ready(function () {
+    $('body').prepend('<input id=\'input_url\' value=\'url\'>' +
+        '<button id = \'getData\' >start</button>' +
+        '<button id = \'pushurl\' >url</button>' +
+        '<br><br><textarea id=\'finished_list\'rows="4" cols="50">print log place </textarea> <br>');
+    if (!window.indexedDB) {
+        window.alert("Your browser doesn't support a stable version of IndexedDB. Such and such feature will not be available.");
+    }
 
-    $.ajaxPrefilter(function (options) {
-        if (options.crossDomain && jQuery.support.cors) {
-            var http = (window.location.protocol === 'http:' ? 'http:' : 'https:');
-            options.url = proxyurl + options.url;
-            //options.url = "http://cors.corsproxy.io/url=" + options.url;
-        }
+    create_opendb("url_array", 1).then(function (retur) {
+        db = retur;
     });
+
+     $.ajaxPrefilter(function (options) {
+     if (options.crossDomain && jQuery.support.cors) {
+     var http = (window.location.protocol === 'http:' ? 'http:' : 'https:');
+     if (options.url.indexOf(proxyurl) != -1) {
+     options.url = options.url;
+     }
+     else {
+     options.url = proxyurl + options.url;
+     }
+
+     //options.url = "http://cors.corsproxy.io/url=" + options.url;
+     }
+     });
+
 
     $('#getData').click(function () {
         if (zip.length <= 0) {
             //printwithTime("start------------");
-            download_get($('#input_url').val());
-            all_url_stack = "";
+            //var tx = db.transaction("MyObjectStore", "readwrite");
+            //var store = tx.objectStore("MyObjectStore");
+            //var index = store.index("NameIndex");
+            //var tx = db.transaction("url_array" , "readwrite");
+            //var store = tx.objectStore("url_array");
+            //store.put({id: 1, url: store.get(1) + "" });
+            //download_get(store.get(1).result.url);
+            db_get_rw(db, "url_array", 1, "url").then(function (urls) {
+                if (urls != "") {
+                    download_get(urls);
+                    db_put(db, "url_array", "", 1);
+                }
+                else {
+                }
+            });
         }
-        else {
-            all_url_stack = all_url_stack + $('#input_url').val();
-            //printwithTime("ready for add download url-----------");
-        }
+    });
+
+    $('#pushurl').click(function () {
+        db_get_rw(db, "url_array", 1, "url").then(function (value) {
+            db_put(db, "url_array", {url: value + window.location.href}, 1);
+        });
     });
 });
 
@@ -590,20 +611,26 @@ function download_get(urls) {
     inputurl.shift();
     let inputurllength = inputurl.length;
     for (let i = 0; i < inputurllength; i++) {
-        zip[i] = new zipmember();
-        zip[i].originurl = "http" + inputurl[i];
+        Zzip[i] = new zipmember();
+        Zzip[i].originurl = "http" + inputurl[i];
     }
     nextstart();
 }
 
 function nextstart() {
-    if (zip.length > 0) {
-        zip[0].start(zip[0]);
-    }
-    else if (all_url_stack != "") {
-        download_get(all_url_stack);
+    if (Zzip.length > 0) {
+        Zzip[0].start(Zzip[0]);
+        printwithTime("start download");
     }
     else {/*end or error*/
+        db_get_ro(db, "url_array", 1, "url").then(function (urls) {
+            if (urls != "") {
+                download_get(urls);
+                db_put(db, "url_array", {url: undefined}, 1);
+            }
+            else {
+            }
+        });
     }
 }
 
@@ -645,7 +672,7 @@ function promis_all(loop_array, loop_func) {
                     reject("error " + ":  promis_all: " + loop_array + "\n\n" + loop_func);
                 }
             });
-        })
+        });
 }
 
 function promis_map(loop_array, loop_func, max_async) {
@@ -663,13 +690,80 @@ function promis_map(loop_array, loop_func, max_async) {
     });
 }
 
+function db_get_rw(datab, schim, id, stri) {
+    return new Promise(function (resolve, reject) {
+        var request = db.transaction(schim, "readwrite")
+            .objectStore(schim)
+            .get(id);
+        request.onsuccess = function (event) {
+            if (event.target.result == undefined||event.target.result == "") {
+                resolve("");
+            }
+            else {
+                resolve(event.target.result[stri]);
+            }
+        };
+        request.onerror = function (event) {
+            console.log("error " + event.target.errorCode + ":  db_get_rw: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+            resolve("");
+        };
+    });
+}
 
+function db_put(datab, schim, array, id) {
+    return new Promise(function (resolve, reject) {
+        var reque = db.transaction(schim, "readwrite");
+        var reques = reque.objectStore(schim);
+        var request = reques.put(array, id);
+        request.onsuccess = function (event) {
+            resolve();
+        };
+        request.onerror = function (event) {
+            console.log("error " + event.target.errorCode + ":  db_get_rw: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+            reject("error " + event.target.errorCode + ":  db_get_rw: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+        };
+    });
+}
 
+function db_get_ro(datab, schim, id, stri) {
+    return new Promise(function (resolve, reject) {
+        var request = db.transaction(schim, "readonly")
+            .objectStore(schim)
+            .get(id);
+        request.onsuccess = function (event) {
+            if (event.target.result == undefined||event.target.result == "") {
+                resolve("");
+            }
+            else {
+                resolve(event.target.result[stri]);
+            }
+        };
+        request.onerror = function (event) {
+            console.log("error " + event.target.errorCode + ":  db_get_ro: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+            reject("error " + event.target.errorCode + ":  db_get_ro: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+        };
+    });
+}
 
+function create_opendb(dbname, version) {
+    return new Promise(function (resolve, reject) {
+        //maybe before success. onupgrade finish. so no need 2 resolve
+        var request = indexedDB.open(dbname, version);
+        var databas = "";
 
-
-
-
-
-
+        request.onupgradeneeded = function (event) {
+            databas = event.target.result;
+            var store = databas.createObjectStore("url_array");
+            store.createIndex("url_index", ["url"]);
+        };
+        request.onerror = function (event) {
+            alert("Database error: " + event.target.errorCode);
+            reject();
+        };
+        request.onsuccess = function (event) {
+            databas = request.result;
+            resolve(databas);
+        };
+    });
+}
 
