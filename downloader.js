@@ -260,8 +260,8 @@ class zipmember {
                         resolve("success");
                     });
             }).catch(function () {
-                console.log("error " + ":  h_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
-                reject("error " + ":  h_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
+                console.log("error " + ":  h_set_download: " + filename + "\n\n" + "\n\n" + sync_count1 + "\n\n" + clas);
+                reject("error " + ":  h_set_download: " + filename + "\n\n"+ "\n\n" + sync_count1 + "\n\n" + clas);
             });
         });
     }
