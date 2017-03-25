@@ -141,10 +141,10 @@ class zipmember {
             let s = clas.h_set_gallery_info(clas.originurl, clas).then(function (info_array) {
                 return clas.h_set_download(info_array[0], info_array[1], 100, clas);
             }).then(function () {
-                completezip.push(zip.shift());
+                completezip.push(Zzip.shift());
                 nextstart();
             }).catch(function () {
-                errorzip.push(zip.shift());
+                errorzip.push(Zzip.shift());
                 nextstart();
             });
         }
@@ -155,10 +155,10 @@ class zipmember {
                 clas.e_set_gallery_info(clas.originurl, clas).then(function (info_array) {
                     return clas.e_set_download(info_array[0], info_array[1], 100, clas);
                 }).then(function () {
-                    completezip.push(zip.shift());
+                    completezip.push(Zzip.shift());
                     nextstart();
                 }).catch(function () {
-                    errorzip.push(zip.shift());
+                    errorzip.push(Zzip.shift());
                     nextstart();
                 });
         }
