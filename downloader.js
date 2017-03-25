@@ -435,7 +435,7 @@ class zipmember {
                 return clas.e_find_image_from_all_s(s_subarray, clas.e_find_image_from_s)
                     .then(function (image_array) {
                         add_number = add_number + 1;
-                        return clas.e_request_all_image(image_array, new JSZip(), clas.request_image, clas.e_find_image_from_s)
+                        return clas.e_request_all_image(image_array, new JSZip(), request_image, clas.e_find_image_from_s)
                             .then(function (save_zip) {
                                 return clas.make_savefile(save_zip, filename + "_" + add_number);
                             }).then(function () {
