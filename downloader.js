@@ -253,7 +253,7 @@ class zipmember {
             }
 
             return Promise.mapSeries(temp_buffer, function (image_subarray) {
-                return clas.h_request_all_image(image_subarray, new JSZip(), clas.request_image, "")
+                return clas.h_request_all_image(image_subarray, new JSZip(), request_image, "")
                     .then(function (save_zip) {
                         return clas.make_savefile(save_zip, filename + "_" + add_number);
                     }).then(function () {
