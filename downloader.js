@@ -491,7 +491,7 @@ class zipmember {
                 });
         });
     }
-
+    /*
     request_image(fromurl, save_zip, self_func, error_function) {
         return new Promise(function (resolve, reject) {
             let xhr1 = new XMLHttpRequest();
@@ -531,6 +531,7 @@ class zipmember {
             xhr1.send();
         });
     }
+    */
 
     make_savefile(save_zip, filename) {
         return new Promise(function (resolve, reject) {
