@@ -1,4 +1,5 @@
 
+
 let zip = [];
 let completezip = [];
 let errorzip = [];
@@ -57,7 +58,6 @@ class zipmember {
             }).then(function () {
                 completezip.push(zip.shift());
                 nextstart();
-                return null;
             }).catch(function () {
                 errorzip.push(zip.shift());
                 nextstart();
@@ -71,7 +71,6 @@ class zipmember {
             }).then(function () {
                 completezip.push(zip.shift());
                 nextstart();
-                return null;
             }).catch(function () {
                 errorzip.push(zip.shift());
                 nextstart();
@@ -166,11 +165,9 @@ class zipmember {
             }
 
             return Promise.mapSeries(temp_buffer, function (image_subarray) {
-                add_number = add_number + 1;
                 return clas.h_request_all_image(image_subarray, new JSZip(), clas.request_image, "")
                     .then(function (save_zip) {
                         return clas.make_savefile(save_zip, filename + "__" + add_number);
-                        add_number = add_number + 1;
                     }).then(function () {
                         resolve("success");
                     });
@@ -405,7 +402,6 @@ class zipmember {
     e_request_all_image(fromurlarray, save_zip, loop_func, error_function) {
         return new Promise(function (resolve, reject) {
             return promis_map(fromurlarray, function (fromurl) {
-                //printwithTime("\n"+"try download: "+fromurl);
                 return loop_func(fromurl, save_zip, loop_func, error_function);}, 5)
                 .then(function () {
                     resolve(save_zip);
@@ -417,19 +413,54 @@ class zipmember {
     }
 
     request_image(fromurl, save_zip, self_func, error_function) {
+        return new Promise(function (resolve, reject) {
+            var ret = GM_xmlhttpRequest({
+                method: "GET",
+                url: proxyurl + fromurl[0],
+                ignoreCache: true,
+                responseType: 'arraybuffer',
+                redirectionLimit: 0, // this is equivalent to 'failOnRedirect: true'
+                onreadystatechange: function () {
+                    if (this.readyState == 4) {
+                        if (this.status == 200 || this.status == 304) {
+                            let filename = fromurl[0].split("/").pop();
+                            save_zip.file(filename, this.response, {base64: true});
+                            resolve("success");
+                        }
+                        else {
+                            if ((error_function != undefined) && (error_function != "")) {//need check really effective error care function?
+                                error_function(fromurl[1])
+                                    .then(function (fromurl) {
+                                        return self_func(fromurl, save_zip);
+                                    }).then(function () {
+                                    resolve("success");
+                                }).catch(function () {
+                                    console.log("error " + ":  request_image: in " + error_function + "\n\n" + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
+                                    reject("error " + ":  request_image: in " + error_function + "\n\n" + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
+                                });
+                            }
+                            else {
+                                return self_func(fromurl, save_zip)
+                                    .then(function () {
+                                        resolve("success");
+                                    }).catch(function () {
+                                        console.log("error " + ":  request_image: in " + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
+                                        reject("error " + ":  request_image: in " + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
+                                    });
+                            }
+                        }
+                    }
+                }
+            });
+        });
         /*
+
          return new Promise(function (resolve, reject) {
-         var ret = GM_xmlhttpRequest({
-         method: "GET",
-         url: proxyurl + fromurl[0],
-         ignoreCache: true,
-         responseType: 'arraybuffer',
-         redirectionLimit: 0, // this is equivalent to 'failOnRedirect: true'
-         onreadystatechange: function () {
+         let xhr1 = new XMLHttpRequest();
+         xhr1.onreadystatechange = function () {
          if (this.readyState == 4) {
          if (this.status == 200 || this.status == 304) {
          let filename = fromurl[0].split("/").pop();
-         printwithoutTime("\n"+"finishdownload: "+filename);
          save_zip.file(filename, this.response, {base64: true});
          resolve("success");
          }
@@ -456,51 +487,12 @@ class zipmember {
          }
          }
          }
-         }
-         });
+         };
+         xhr1.open('GET', proxyurl + fromurl[0]);
+         xhr1.responseType = 'arraybuffer';
+         xhr1.send();
          });
          */
-
-
-        return new Promise(function (resolve, reject) {
-            let xhr1 = new XMLHttpRequest();
-            xhr1.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200 || this.status == 304) {
-                        let filename = fromurl[0].split("/").pop();
-                        //printwithoutTime("finishdownload: "+filename);
-                        save_zip.file(filename, this.response, {base64: true});
-                        resolve("success");
-                    }
-                    else {
-                        if ((error_function != undefined) && (error_function != "")) {//need check really effective error care function?
-                            error_function(fromurl[1])
-                                .then(function (fromurl) {
-                                    return self_func(fromurl, save_zip);
-                                }).then(function () {
-                                resolve("success");
-                            }).catch(function () {
-                                console.log("error " + ":  request_image: in " + error_function + "\n\n" + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
-                                reject("error " + ":  request_image: in " + error_function + "\n\n" + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
-                            });
-                        }
-                        else {
-                            return self_func(fromurl, save_zip)
-                                .then(function () {
-                                    resolve("success");
-                                }).catch(function () {
-                                    console.log("error " + ":  request_image: in " + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
-                                    reject("error " + ":  request_image: in " + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
-                                });
-                        }
-                    }
-                }
-            };
-            xhr1.open('GET', proxyurl + fromurl[0]);
-            xhr1.responseType = 'arraybuffer';
-            xhr1.send();
-        });
-
     }
 
     make_savefile(save_zip, filename) {
@@ -508,7 +500,7 @@ class zipmember {
             let content = save_zip.generateAsync({type: "blob"})
                 .then(function (blob) {
                     saveAs(blob, filename + ".zip");
-                    printwithTime("finish download " + filename + ".zip");
+                    printwithTime("download " + filename + ".zip finish");
                     resolve("success");
                 })
                 .catch(function () {
@@ -564,7 +556,6 @@ $(document).ready(function () {
 
     $('#pushurl').click(function () {
         db_get_rw(db, "url_array", 1, "url").then(function (value) {
-            printwithTime("add download list" +"\n"+ window.location.href);
             return db_put(db, "url_array", {url: value + window.location.href}, 1);
         }).catch(function (event) {
             console.log("error " + ":  #pushurl_clickevent: " + db +"\n\n" +  "url_array" + "\n\n" + "1" + "\n\n" +  "url");
@@ -576,13 +567,11 @@ function download_get(urls) {
     let inputurl = urls.split("http");
     inputurl.shift();
     let inputurllength = inputurl.length;
-    printwithTime("ready download:");
     for (let i = 0; i < inputurllength; i++) {
         zip[i] = new zipmember();
         zip[i].originurl = "http" + inputurl[i];
-        printwithoutTime("\n"+zip[i].originurl);
+        printwithTime("ready download:" + "\n"+zip[i].originurl);
     }
-    printwithTime("\n"+"ready download:"+"\n");
     nextstart();
 }
 
@@ -592,13 +581,12 @@ function nextstart() {
         printwithTime("start download from:" + zip[0].originurl);
     }
     else {/*end or error*/
-        let temp = db_get_rw(db, "url_array", 1, "url").then(function (urls) {
+        return db_get_ro(db, "url_array", 1, "url").then(function (urls) {
             if (urls != "") {
                 download_get(urls);
                 return db_put(db, "url_array", "", 1);
             }
             else {
-                //reject("nextstart");
             }
         }).catch(function (event) {
             console.log("error " + ":  nextstart: " + db +"\n\n" +  "url_array" + "\n\n" + "1" + "\n\n" +  "url");
@@ -608,9 +596,6 @@ function nextstart() {
 
 function printwithTime(str) {
     $('#finished_list').val(new Date().toLocaleTimeString() + ":\n " + str + "\n\n" + $('#finished_list').val());
-}
-function printwithoutTime(str) {
-    $('#finished_list').val(str + "\n" + $('#finished_list').val());
 }
 
 function textsplit(data, sp1, sp2) {
@@ -686,7 +671,7 @@ function db_get_rw(datab, schim, id, stri) {
         };
         request.onerror = function (event) {
             console.log("error " + event.target.errorCode + ":  db_get_rw: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
-            reject("error " + event.target.errorCode + ":  db_get_rw: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+            resolve("");
         };
     });
 }
@@ -697,7 +682,7 @@ function db_put(datab, schim, array, id) {
         var reques = reque.objectStore(schim);
         var request = reques.put(array, id);
         request.onsuccess = function (event) {
-            resolve("");
+            resolve();
         };
         request.onerror = function (event) {
             console.log("error " + event.target.errorCode + ":  db_get_rw: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
@@ -748,3 +733,4 @@ function create_opendb(dbname, version) {
         };
     });
 }
+
