@@ -1,65 +1,27 @@
+//ver 0.1
+
 let zip = [];
 let completezip = [];
 let errorzip = [];
-let all_url_stack = "";//lock
-let datalockcount = 0;
-const subDomainList = ["la", "aa", "ba"];
-const callPerServer = 2;
-const download_array = [];
-const proxyurl = "http://localhost:443/";
-const h_gallery = "https://hitomi.la/galleries/";
-const h_reader = "https://hitomi.la/reader/";
+let db = 0;
 
-download_array[0] = function download_html(zipnumber, passlockcount) {
-    download_hitomi_html(zipnumber, passlockcount);
-};
 
-download_array[1] = function download_hitomi_js(zipnumber, passlockcount) {
-    $.ajax({
-        url: 'http://localhost:443/https://hitomi.la/galleries/' + zip[zipnumber].filenumber + '.js',
-        //async:false,
-        success: function () {
-            $.each(galleryinfo, function (i, image) {
-                zip[zipnumber].pushimageurl(url_from_url(zip[zipnumber].filenumber + "/" + image.name, i));
-                zip[zipnumber].pushimagename(image.name);
-            });
-            returnlock(passlockcount).then(isworking(), thenerror());
-
-        },
-        error: function () {
-            zip[zipnumber].imageurl = ["error"];
-            zip[zipnumber].imagename = ["error"];
-            returnlock(passlockcount).then(isworking(), thenerror());
-        }
-    });
-};
+const subDomainList = ["la", "ba", "aa"];//la,aa,ba
+const proxyurl = "http://localhost:8080/"; //
 
 class zipmember {
     constructor() {
         this.originurl = "";//for save original url
-        this.imageurl = [];//for download
         this.jszip = new JSZip();
-        this.threadcount = 0;
-        this.requestlimit = 0;
         this.mainurl = "";
-        this.mainid = "";
-        this.filename = "";
     }
 
     get originurl() {
         return this._originurl;
     }
 
-    get imageurl() {
-        return this._imageurl;
-    }
-
     get jszip() {
         return this._jszip;
-    }
-
-    get threadcount() {
-        return this._threadcount;
     }
 
     get requestlimit() {
@@ -70,43 +32,15 @@ class zipmember {
         return this._mainurl;
     }
 
-    get mainid() {
-        return this._mainid;
-    }
-
-    get filename() {
-        return this._filename;
-    }
-
     set originurl(strin) {
         let text = strin.split("/");
         this._originurl = strin;
         this._mainurl = text[0] + "//" + text[2];
-
-        switch (text[3]) {
-            case "s"    :
-                this._mainid = text[5].split("-")[0];
-                break;
-            case "g"   :
-            case "mpv"  :
-                this._mainid = text[4];
-                break;
-        }
-    }
-
-    set imageurl(arra) {
-        if (Array.isArray(arra)) {
-            this._imageurl = arra;
-        }
     }
 
     set jszip(jszi) {
         this._jszip = jszi;
     }//need block if not JSzip
-
-    set threadcount(intege) {
-        this._threadcount = intege;
-    }
 
     set requestlimit(intege) {
         this._threadlimit = intege;
@@ -116,49 +50,18 @@ class zipmember {
         this._mainurl = this._mainurl;
     }
 
-    set mainid(inte) {
-        this._mainid = this._mainid;
-    }
-
-    set filename(strin) {
-        this._filename = strin;
-    }
-
-    set_thread(number) {
-        let clas = this;
-        return new Promise(function (resolve, reject) {
-            if (number > 0 && clas.threadcount >= 0) {
-                clas.threadcount = clas.threadcount + number;
-                resolve(clas);
-            }
-            else {
-                reject("error " + ": set_thread: " + clas.threadcount + "," + number);
-            }
-        });
-    }
-
-    unlock_thread() {
-        let clas = this;
-        clas.threadcount = clas.threadcount - 1;
-        return new Promise(function (resolve, reject) {
-            if (clas.threadcount >= 0) {
-                resolve(clas);
-            }
-            else {
-                reject("error " + ": unlock_thread: " + clas.threadcount + "," + number);
-            }
-        });
-    };
-
     start() {
         let clas = this;
         if (clas.mainurl == "https://hitomi.la") {
-            clas.h_set_gallery_info(clas.originurl, clas).then(function (info_array) {
-                return clas.h_set_download(info_array[0], info_array[1], 100, clas);
-                }).then(function () {
+            let s = clas.h_set_gallery_info(clas.originurl, clas).then(function (info_array) {
+                return clas.h_set_download(info_array[0], info_array[1], 100, clas);//filename , imagearray
+            }).then(function () {
+                zip[0].jszip = "";
                 completezip.push(zip.shift());
                 nextstart();
+                return null;
             }).catch(function () {
+                zip[0].jszip = "";
                 errorzip.push(zip.shift());
                 nextstart();
             });
@@ -166,12 +69,15 @@ class zipmember {
 
         else if (clas.mainurl == "https://exhentai.org" || clas.mainurl == "https://e-hentai.org") {
             let text = clas.originurl.split("/");
-            clas.e_set_gallery_info(clas.originurl, clas).then(function (info_array) {
-                return clas.e_set_download(info_array[0], info_array[1], 100, clas);
+            let s = clas.e_set_gallery_info(clas.originurl, clas).then(function (info_array) {
+                return clas.e_set_download(info_array[0], info_array[1], 100, clas);//filename , imagearray
             }).then(function () {
+                zip[0].jszip = "";
                 completezip.push(zip.shift());
                 nextstart();
+                return null;
             }).catch(function () {
+                zip[0].jszip = "";
                 errorzip.push(zip.shift());
                 nextstart();
             });
@@ -181,18 +87,16 @@ class zipmember {
     h_set_gallery_info(fromurl, clas) {
         return new Promise(function (resolve, reject) {
             let tempfilename = "";
-            let tempid = "";
             clas.h_find_gallery_info(fromurl)
                 .then(function (temp_array) {
                     tempfilename = temp_array[0];
-                    tempid = temp_array[1];
-                    return clas.h_get_gallery_js(temp_array[1], temp_array[2]);
+                    return clas.h_get_gallery_js(temp_array[1], temp_array[2]);//galleryid, fromurl
                 }).then(function (image_array) {
-                    resolve([tempfilename, image_array]);
-                }).catch(function (error) {
-                    console.log(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
-                    reject(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
-                });
+                resolve([tempfilename, image_array]);
+            }).catch(function (error) {
+                console.log(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
+                reject(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
+            });
         });
     }
 
@@ -204,9 +108,9 @@ class zipmember {
             let temp_artist = "";
             let temp_group = "";
 
-            ajax_call(h_gallery + tempid + ".html")
+            ajax_call("https://hitomi.la/galleries/" + tempid + ".html")
                 .then(function (data) {
-                    let text1 = textsplit(data, "dj-gallery", "date");
+                    let text1 = textsplit(data, "-gallery", "date");
 
                     temp_title = textsplit(text1, "h1>", "</h1");
                     temp_title = textsplit(temp_title, ".html\">", "</a");
@@ -227,70 +131,90 @@ class zipmember {
                         temp_group = "N/A";
                     }
                     tempname = temp_group + "_" + temp_artist + "_" + temp_title;
-                    resolve([tempname, tempid, h_gallery + tempid + ".js"]);
+                    resolve([tempname, tempid, "https://hitomi.la/galleries/" + tempid + ".js"]);
                 }, function () {
                     tempname = "N/A_N/A_" + tempid;
-                    resolve([tempname, tempid, h_gallery + tempid + ".js"]);
+                    resolve([tempname, tempid, "https://hitomi.la/galleries/" + tempid + ".js"]);
                 }).catch(function () {
                 console.log("error " + ":    h_find_gallery_info: " + fromurl);
                 reject("error " + ":    h_find_gallery_info: " + fromurl);
-            })
+            });
         });
     }
 
-    h_get_gallery_js(galleryid, fromurl) {
-        return new Promise(function (resolve, reject) {
-            let temp_array = [];
-            let subDomainListlength = subDomainList.length;
-            ajax_call(fromurl).then(function (data) {
-                $.each(galleryinfo, function (i, image) {
-                    temp_array[i] = [];
-                    temp_array[i][0] = "https://" + subDomainList[i % subDomainListlength] + ".hitomi.la/galleries/" + galleryid + "/" + image.name;
-                    temp_array[i][1] = temp_array[i][0];
-                });
-                resolve(temp_array);
-            }).catch(function (error) {
-                console.log(error + ":  h_get_gallery_json: " + galleryid + "\n\n" + fromurl);
-                reject(error + ":  h_get_gallery_json: " + galleryid + "\n\n" + fromurl);
-            });
-        })
-    }
+		h_get_gallery_js(galleryid, fromurl) {
+			return new Promise(function (resolve, reject) {
+				let temp_array = [];
+				let subDomainListlength = subDomainList.length;
+				ajax_call(fromurl).then(function (data) {
+					let temp_array2 = data.split("name\"\:\"");
+					temp_array2.shift();
+					let temp_array2length = temp_array2.length;
+					let temp_3 = [];
+					for(var i = 0 ; i < temp_array2length; i++){
+						temp_3 = temp_array2[i].split("\"");
+						temp_array[i] = [];
+						temp_array[i][0] = "https://" + subDomainList[i % subDomainListlength] + ".hitomi.la/galleries/" + galleryid + "/";
+						temp_array[i][0] = temp_array[i][0] + temp_3[0];
+						temp_array[i][1] = temp_array[i][0];
+					}
+					resolve(temp_array);
+				}).catch(function (error) {
+					console.log(error + ":  h_get_gallery_json: " + galleryid + "\n\n" + fromurl);
+					reject(error + ":  h_get_gallery_json: " + galleryid + "\n\n" + fromurl);
+				});
+			});
+		}
 
     h_set_download(filename, image_array, sync_count1, clas) {
         return new Promise(function (resolve, reject) {
             let image_arraylength = image_array.length;
-            let temp_buffer = [];
-            let add_number = 0;
+            let temp_buffer = [];//per 100 image url
+            let add_number = 0;//zip name + per 100 image split
             while (image_arraylength > 0) {
                 temp_buffer.push(image_array.splice(0, sync_count1));
                 image_arraylength = image_arraylength - sync_count1;
             }
 
             return Promise.mapSeries(temp_buffer, function (image_subarray) {
+                add_number = add_number + 1;
                 return clas.h_request_all_image(image_subarray, new JSZip(), clas.request_image, "")
                     .then(function (save_zip) {
-                        return clas.make_savefile(save_zip, filename + "_" + add_number);
-                    }).then(function () {
-                        resolve("success");
+                        if (temp_buffer.length == 1) {
+                            return clas.make_savefile(save_zip, filename);
+                        }
+                        else {
+                            return clas.make_savefile(save_zip, filename + "_" + add_number);
+                        }
+                        add_number = add_number + 1;
                     });
+            }).then(function () {
+                resolve("success");
             }).catch(function () {
-                console.log("error " + ":  h_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
-                reject("error " + ":  h_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
+                console.log("error " + ":  h_set_download: " + filename + "\n\n" + "\n\n" + sync_count1 + "\n\n" + clas);
+                reject("error " + ":  h_set_download: " + filename + "\n\n" + "\n\n" + sync_count1 + "\n\n" + clas);
             });
         });
     }
 
     h_request_all_image(fromurlarray, save_zip, loop_func, error_function) {
+        let progress = [];
+        let fromurlarraylength = fromurlarray.length;
+        for (var i = 0; i < fromurlarraylength; i++) {
+            progress[i] = fromurlarray[i][0].split("/").pop();
+        }
         return new Promise(function (resolve, reject) {
             return promis_map(fromurlarray, function (fromurl) {
-                return loop_func(fromurl, save_zip, loop_func, error_function)
-            }, 5)
-                .then(function () {
-                    resolve(save_zip);
-                }).catch(function () {
-                    console.log("error " + ":  h_request_all_image: " + fromurlarray + "\n\n" + save_zip + "\n\n" + loop_func + "\n\n" + error_function);
-                    reject("error " + ":  h_request_all_image: " + fromurlarray + "\n\n" + save_zip + "\n\n" + loop_func + "\n\n" + error_function);
+                return loop_func(fromurl, save_zip, loop_func, error_function).then(function () {
+                    progress.splice(progress.indexOf(fromurl[0].split("/").pop()), 1, "");
+                    changewithTime("remain" + progress , '#loading_list');
                 });
+            }, 5).then(function () {
+                resolve(save_zip);
+            }).catch(function () {
+                console.log("error " + ":  h_request_all_image: " + fromurlarray + "\n\n" + save_zip + "\n\n" + loop_func + "\n\n" + error_function);
+                reject("error " + ":  h_request_all_image: " + fromurlarray + "\n\n" + save_zip + "\n\n" + loop_func + "\n\n" + error_function);
+            });
         });
     }
 
@@ -300,7 +224,7 @@ class zipmember {
             return clas.e_find_gp0(fromurl).then(function (fromurl) {
                 return clas.e_find_gallery_info(fromurl);
             }).then(function (temp_array) {
-                tempfilename = temp_array[0];
+                tempfilename = temp_array[0];//filename , gallery_array
                 return clas.e_find_s_from_all_g(temp_array[1], clas.e_find_s_from_g);
             }).then(function (s_array) {
                 resolve([tempfilename, s_array]);
@@ -331,6 +255,9 @@ class zipmember {
                         console.log("error " + ":   e_find_gp0: " + fromurl);
                         reject("error " + ":   e_find_gp0: " + fromurl);
                     }
+                }).catch(function (event) {
+                    console.log("error " + ":  e_find_gp0: " + fromurl);
+                    reject("error " + ":  e_find_gp0: " + fromurl);
                 });
             }
             else if (temp_text[3] == "g") {
@@ -363,13 +290,13 @@ class zipmember {
                 else {
                     var i = 0;
                     while ((i = galleryname.indexOf("[")) != -1) {
-                        galleryname = galleryname.substring(0, i - 1) + galleryname.substring(galleryname.indexOf("]") + 1, galleryname.length);
+                        galleryname = galleryname.substring(0, i) + galleryname.substring(galleryname.indexOf("]") + 1, galleryname.length);
                     }
                     while ((i = galleryname.indexOf("(")) != -1) {
-                        galleryname = galleryname.substring(0, i - 1) + galleryname.substring(galleryname.indexOf(")") + 1, galleryname.length);
+                        galleryname = galleryname.substring(0, i) + galleryname.substring(galleryname.indexOf(")") + 1, galleryname.length);
                     }
                     while ((i = galleryname.indexOf("{")) != -1) {
-                        galleryname = galleryname.substring(0, i - 1) + galleryname.substring(galleryname.indexOf("}") + 1, galleryname.length);
+                        galleryname = galleryname.substring(0, i) + galleryname.substring(galleryname.indexOf("}") + 1, galleryname.length);
                     }
                     //this code maybe problem when real_title have [],{},(). cause cannot evaluate added text or original title
                 }
@@ -411,7 +338,7 @@ class zipmember {
                         }
                     }
                     resolve(s_array);
-                }, function () {
+                }).catch(function (event) {
                     console.log("error " + ":  e_find_s_from_all_g: " + fromurlarray + "\n\n" + loop_func);
                     reject("error " + ":  e_find_s_from_all_g: " + fromurlarray + "\n\n" + loop_func);
                 });
@@ -423,13 +350,17 @@ class zipmember {
             let mainurl = fromurl.split("/");
             mainurl = mainurl[0] + "//" + mainurl[2] + "/s/";
             return ajax_call(fromurl).then(function (data) {
-                let s_array = data.split(mainurl);
+                let s_array = textsplit(data, "id=\"gdt\">", "class=\"c\">");
+                s_array = s_array.split(mainurl);
                 s_array.shift();
                 let s_arraylength = s_array.length;
                 for (let i = 0; i < s_arraylength; i++) {
                     s_array[i] = mainurl + s_array[i].split("\"")[0];
                 }
                 resolve(s_array);
+            }).catch(function (event) {
+                console.log("error " + ": e_find_s_from_g: " + fromurl);
+                reject("error " + ":  e_find_s_from_g: " + fromurl);
             });
         });
     }
@@ -450,14 +381,19 @@ class zipmember {
                         add_number = add_number + 1;
                         return clas.e_request_all_image(image_array, new JSZip(), clas.request_image, clas.e_find_image_from_s)
                             .then(function (save_zip) {
-                                return clas.make_savefile(save_zip, filename + "_" + add_number);
-                            }).then(function () {
-                                resolve("success");
+                                if (temp_buffer.length == 1) {
+                                    return clas.make_savefile(save_zip, filename);
+                                }
+                                else {
+                                    return clas.make_savefile(save_zip, filename + "_" + add_number);
+                                }
                             });
-                    }).catch(function () {
-                        console.log("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
-                        reject("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
                     });
+            }).then(function () {
+                resolve("success");
+            }).catch(function () {
+                console.log("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
+                reject("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
             });
         });
     }
@@ -465,13 +401,13 @@ class zipmember {
     e_find_image_from_all_s(fromurlarray, loop_func) {
         return new Promise(function (resolve, reject) {
             let image_array = [];
-            return promis_map(fromurlarray, loop_func, 5).then(function (temp_array) {
+            return promis_map(fromurlarray, loop_func, 100).then(function (temp_array) {
                 let temp_arraylength = temp_array.length;
                 for (let i = 0; i < temp_arraylength; i++) {
                     image_array.push(temp_array[i]);
                 }
                 resolve(image_array);
-            }, function () {
+            }).catch(function (event) {
                 console.log("error " + ": e_find_image_from_all_s: " + fromurlarray + "\n\n" + loop_func);
                 reject("error " + ": e_find_image_from_all_s: " + fromurlarray + "\n\n" + loop_func);
             });
@@ -486,15 +422,26 @@ class zipmember {
                 image_url[0] = textsplit(image_url[0], "src=\"", "\"");
                 image_url[1] = textsplit(data, "return nl(\'", "\')\"");
                 image_url[1] = fromurl + "?nl=" + image_url[1];
-                resolve(image_url);
-            })
+                resolve(image_url);//main,suburl
+            }).catch(function (event) {
+                console.log("error " + ":  e_find_image_from_s: " + fromurl);
+                reject("error " + ":  e_find_image_from_s: " + fromurl);
+            });
         });
     }
 
     e_request_all_image(fromurlarray, save_zip, loop_func, error_function) {
+        let progress = [];
+        let fromurlarraylength = fromurlarray.length;
+        for (var i = 0; i < fromurlarraylength; i++) {
+            progress[i] = fromurlarray[i][0].split("/").pop();
+        }
         return new Promise(function (resolve, reject) {
             return promis_map(fromurlarray, function (fromurl) {
-                return loop_func(fromurl, save_zip, loop_func, error_function)
+                return loop_func(fromurl, save_zip, loop_func, error_function).then(function () {
+                    progress.splice(progress.indexOf(fromurl[0].split("/").pop()), 1, "");
+                    changewithTime("remain: " + progress , '#loading_list');
+                });
             }, 5)
                 .then(function () {
                     resolve(save_zip);
@@ -506,12 +453,68 @@ class zipmember {
     }
 
     request_image(fromurl, save_zip, self_func, error_function) {
+        /*
+         let filename = fromurl[0].split("/").pop();
+         console.log("\n"+"try download: "+filename);
+         return new Promise(function (resolve, reject) {
+         var ret = GM_xmlhttpRequest({
+         method: "GET",
+         url: proxyurl + fromurl[0],
+         ignoreCache: true,
+         responseType: 'arraybuffer',
+         redirectionLimit: 0, // this is equivalent to 'failOnRedirect: true'
+         onload:function(){
+         //let filename = fromurl[0].split("/").pop();
+         //console.log("\n"+"finishdownload: "+filename);
+         save_zip.file(filename, this.response, {base64: true});
+         resolve("success");
+         },
+         onreadystatechange: function () {
+         if (this.readyState == 4) {
+         if (this.status == 200 || this.status == 304) {}
+         else {
+         if ((error_function != undefined) && (error_function != "")) {//need check really effective error care function?
+         error_function(fromurl[1])
+         .then(function (fromurl) {
+         return self_func(fromurl, save_zip);
+         }).then(function () {
+         resolve("success");
+         }).catch(function () {
+         console.log("error " + ":  request_image: in " + error_function + "\n\n" + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
+         reject("error " + ":  request_image: in " + error_function + "\n\n" + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
+         });
+         }
+         else {
+         return self_func(fromurl, save_zip)
+         .then(function () {
+         resolve("success");
+         }).catch(function () {
+         console.log("error " + ":  request_image: in " + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
+         reject("error " + ":  request_image: in " + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
+         });
+         }
+         }
+         }
+         }
+         });
+         });
+         */
+
         return new Promise(function (resolve, reject) {
+            let filename = fromurl[0].split("/").pop();
+            console.log("\n" + "try download: " + filename);
             let xhr1 = new XMLHttpRequest();
+            xhr1.onload = function () {
+                //let filename = fromurl[0].split("/").pop();
+                //console.log("\n"+"finishdownload: "+filename);
+                save_zip.file(filename, this.response, {base64: true});
+                resolve("success");
+            };
             xhr1.onreadystatechange = function () {
                 if (this.readyState == 4) {
                     if (this.status == 200 || this.status == 304) {
                         let filename = fromurl[0].split("/").pop();
+                        //printwithoutTime("finishdownload: "+filename , ???);
                         save_zip.file(filename, this.response, {base64: true});
                         resolve("success");
                     }
@@ -543,6 +546,8 @@ class zipmember {
             xhr1.responseType = 'arraybuffer';
             xhr1.send();
         });
+
+
     }
 
     make_savefile(save_zip, filename) {
@@ -550,6 +555,7 @@ class zipmember {
             let content = save_zip.generateAsync({type: "blob"})
                 .then(function (blob) {
                     saveAs(blob, filename + ".zip");
+                    printwithTime("finish download " + filename + ".zip" , '#finished_list');
                     resolve("success");
                 })
                 .catch(function () {
@@ -558,7 +564,6 @@ class zipmember {
                 });
         });
     }
-
 }
 
 
@@ -574,13 +579,13 @@ $(document).ready(function () {
 
     $('#getData').click(function () {
         if (zip.length <= 0) {
-            //printwithTime("start------------");
+            printwithTime("start------------" , '#finished_list');
             download_get($('#input_url').val());
             all_url_stack = "";
         }
         else {
             all_url_stack = all_url_stack + $('#input_url').val();
-            //printwithTime("ready for add download url-----------");
+            printwithTime("add download url-----------" , '#finished_list');
         }
     });
 });
@@ -589,16 +594,20 @@ function download_get(urls) {
     let inputurl = urls.split("http");
     inputurl.shift();
     let inputurllength = inputurl.length;
+
     for (let i = 0; i < inputurllength; i++) {
         zip[i] = new zipmember();
         zip[i].originurl = "http" + inputurl[i];
+        printwithoutTime("\n"+zip[i].originurl + "\n" , '#finished_list');
     }
+    printwithoutTime("backup url list:" , '#finished_list');
     nextstart();
 }
 
 function nextstart() {
     if (zip.length > 0) {
         zip[0].start(zip[0]);
+        printwithTime("start download from:" + zip[0].originurl , '#finished_list');
     }
     else if (all_url_stack != "") {
         download_get(all_url_stack);
@@ -607,9 +616,23 @@ function nextstart() {
     }
 }
 
-function printwithTime(str) {
-    $('#finished_list').val(new Date().toLocaleTimeString() + ":\n " + str + "\n\n" + $('#finished_list').val());
+function printwithTime(str , where) {
+    $(where).val(new Date().toLocaleTimeString() + ":\n " + str + "\n\n" + $(where).val());
 }
+function printwithoutTime(str , where) {
+    $(where).val(str + "\n" + $(where).val());
+}
+
+function changewithTime(str , where){
+    $(where).val(new Date().toLocaleTimeString() + ":\n " + str + "\n");
+}
+
+function changewithoutTime(str , where){
+    $(where).val(str + "\n");
+}
+
+
+
 
 function textsplit(data, sp1, sp2) {
     if (data.indexOf(sp1) != -1 && data.indexOf(sp2) != -1) {
@@ -622,16 +645,20 @@ function textsplit(data, sp1, sp2) {
     }
 }
 
-function ajax_call(fromurl) {
-    return new Promise(function (resolve, reject) {
-        $.ajax({url: fromurl}).retry({times: 3}).fail(function (error) {
-            console.log("error " + error.errorCode + ":  ajax_call: " + fromurl);
-            reject("error " + error.errorCode + ":  ajax_call: " + fromurl);
-        }).done(function (data) {
-            resolve(data);
-        });
-    });
-}
+	function ajax_call(fromurl , fromurltype) {
+		return new Promise(function (resolve, reject) {
+			$.ajax({
+				url: fromurl,
+				mimeType:'text/plain',
+				error: function(xhr, status, error) {
+					var err = eval("(" + xhr.responseText + ")");
+					reject("error " + err.Message +":  ajax_call: " + fromurl);
+				}}).retry({times: 3})
+				.done(function (data) {
+				resolve(data);
+			});
+		});
+	}
 
 function promis_all(loop_array, loop_func) {
     return Promise.all(loop_array.map(loop_func))
@@ -645,7 +672,10 @@ function promis_all(loop_array, loop_func) {
                     reject("error " + ":  promis_all: " + loop_array + "\n\n" + loop_func);
                 }
             });
-        })
+        }).catch(function (event) {
+            console.log("error " + ":  promis_all: " + loop_array + "\n\n" + loop_func);
+            reject("error " + ":  promis_all: " + loop_array + "\n\n" + loop_func);
+        });
 }
 
 function promis_map(loop_array, loop_func, max_async) {
@@ -659,6 +689,9 @@ function promis_map(loop_array, loop_func, max_async) {
                     console.log("error " + ":  promis_map: " + loop_array + "\n\n" + loop_func + "\n\n" + max_async);
                     reject("error " + ":  promis_map: " + loop_array + "\n\n" + loop_func + "\n\n" + max_async);
                 }
+            }).catch(function () {
+                console.log("error " + ":  promis_map: " + loop_array + "\n\n" + loop_func + "\n\n" + max_async);
+                reject("error " + ":  promis_map: " + loop_array + "\n\n" + loop_func + "\n\n" + max_async);
             });
     });
 }
