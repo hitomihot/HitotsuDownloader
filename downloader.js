@@ -271,57 +271,51 @@ class zipmember {
         });
     }
 
-    e_find_gallery_info(fromurl) {
-        return new Promise(function (resolve, reject) {
-            let filename = "";
-            return ajax_call(fromurl).then(function (data) {
-                let getartist = textsplit(data, "<div id=\"td_artist:", "\"");
-                if (getartist == "") {
-                    getartist = "N/A";
-                }
-                let getgroup = textsplit(data, "<div id=\"td_group:", "\"");
-                if (getgroup == "") {
-                    getgroup = "N/A";
-                }
-                let galleryname = textsplit(data, "id=\"gn\">", "</h1>");
-                if (galleryname == "") {
-                    galleryname = fromurl.split("/")[5];
-                }
-                else {
-                    var i = 0;
-                    while ((i = galleryname.indexOf("[")) != -1) {
-                        galleryname = galleryname.substring(0, i) + galleryname.substring(galleryname.indexOf("]") + 1, galleryname.length);
-                    }
-                    while ((i = galleryname.indexOf("(")) != -1) {
-                        galleryname = galleryname.substring(0, i) + galleryname.substring(galleryname.indexOf(")") + 1, galleryname.length);
-                    }
-                    while ((i = galleryname.indexOf("{")) != -1) {
-                        galleryname = galleryname.substring(0, i) + galleryname.substring(galleryname.indexOf("}") + 1, galleryname.length);
-                    }
-                    //this code maybe problem when real_title have [],{},(). cause cannot evaluate added text or original title
-                }
+    
+		e_find_gallery_info(fromurl) {
+			return new Promise(function (resolve, reject) {
+				let filename = "";
+				return ajax_call(fromurl).then(function (data) {
+					let getartist = textsplit(data, "<div id=\"td_artist:", "\"");
+					if (getartist == "") {
+						getartist = "N/A";
+					}
+					let getgroup = textsplit(data, "<div id=\"td_group:", "\"");
+					if (getgroup == "") {
+						getgroup = "N/A";
+					}
+					let galleryname = textsplit(data, "id=\"gn\">", "</h1>");
+					if (galleryname == "") {
+						galleryname = fromurl.split("/")[5];
+					}
+					else {
+						galleryname = removetext(galleryname , "[" , "]");
+						galleryname = removetext(galleryname , "(" , ")");
+						galleryname = removetext(galleryname , "{" , "}");
+					}
+					//this code maybe problem when real_title have [],{},(). cause cannot evaluate added text or original title
 
-                filename = getgroup + "_" + getartist + "_" + galleryname;
-                let temp_text = fromurl.slice(0, -1);
-                let g_array = [];
-                if (data.indexOf(temp_text) != -1) {
-                    let maxpage = data.split(temp_text);
-                    maxpage = maxpage[maxpage.length - 2].split("\"")[0];
-                    for (var i = 0; i <= maxpage; i++) {
-                        g_array[i] = temp_text + i;
-                    }
-                }
-                else {
-                    g_array[0] = fromurl;
-                }
+					filename = getgroup + "_" + getartist + "_" + galleryname;
+					let temp_text = fromurl.slice(0, -1);
+					let g_array = [];
+					if (data.indexOf(temp_text) != -1) {
+						let maxpage = data.split(temp_text);
+						maxpage = maxpage[maxpage.length - 2].split("\"")[0];
+						for (var i = 0; i <= maxpage; i++) {
+							g_array[i] = temp_text + i;
+						}
+					}
+					else {
+						g_array[0] = fromurl;
+					}
 
-                resolve([filename, g_array]);
-            }).catch(function (error) {
-                console.log(error + ":  e_find_gallery_info: " + fromurl);
-                reject(error + ":  e_find_gallery_info: " + fromurl);
-            });
-        });
-    }
+					resolve([filename, g_array]);
+				}).catch(function (error) {
+					console.log(error + ":  e_find_gallery_info: " + fromurl);
+					reject(error + ":  e_find_gallery_info: " + fromurl);
+				});
+			});
+		}
 
     e_find_s_from_all_g(fromurlarray, loop_func) {
         return new Promise(function (resolve, reject) {
@@ -631,7 +625,34 @@ function changewithoutTime(str , where){
     $(where).val(str + "\n");
 }
 
-
+	function removetext(data , text1 , text2){
+		let temp = data;
+		while(true){
+			let i = temp.indexOf(text1);
+			let j = temp.indexOf(text2);
+			let templength = temp.length;
+			if(i == -1 && j == -1){
+				break;
+			}
+			else if(i != -1 && j != -1 &&  i < j){
+				temp =  temp.substring(0, i ) + temp.substring(j+1 , templength);
+				continue;
+			}
+			else if(i != -1 || i > j){
+				temp = temp.substring(0 , j) + temp.substring(j+1 , templength);
+				continue;
+			}
+			else if(j != -1){
+				temp = temp.substring(0 , i) + temp.substring(i+1 , templength);
+				continue;
+			}
+			else{
+				printwithTime("error in title edit" + data + "\n" , '#finished_list');
+				break;
+			}
+		}
+		return temp;
+	}
 
 
 function textsplit(data, sp1, sp2) {
