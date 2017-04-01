@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         02
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.11
 // @description  try to take over the world!
 // @author       You
 // @include      https://hitomi.la/galleries/*.html
@@ -312,18 +312,11 @@
 						galleryname = fromurl.split("/")[5];
 					}
 					else {
-						var i = 0;
-						while ((i = galleryname.indexOf("[")) != -1) {
-							galleryname = galleryname.substring(0, i ) + galleryname.substring(galleryname.indexOf("]") + 1, galleryname.length);
-						}
-						while ((i = galleryname.indexOf("(")) != -1) {
-							galleryname = galleryname.substring(0, i ) + galleryname.substring(galleryname.indexOf(")") + 1, galleryname.length);
-						}
-						while ((i = galleryname.indexOf("{")) != -1) {
-							galleryname = galleryname.substring(0, i ) + galleryname.substring(galleryname.indexOf("}") + 1, galleryname.length);
-						}
-						//this code maybe problem when real_title have [],{},(). cause cannot evaluate added text or original title
+						galleryname = removetext(galleryname , "[" , "]");
+						galleryname = removetext(galleryname , "(" , ")");
+						galleryname = removetext(galleryname , "{" , "}");
 					}
+					//this code maybe problem when real_title have [],{},(). cause cannot evaluate added text or original title
 
 					filename = getgroup + "_" + getartist + "_" + galleryname;
 					let temp_text = fromurl.slice(0, -1);
@@ -643,7 +636,34 @@
 		$(where).val(str + "\n");
 	}
 
-
+	function removetext(data , text1 , text2){
+		let temp = data;
+		while(true){
+			let i = temp.indexOf(text1);
+			let j = temp.indexOf(text2);
+			let templength = temp.length;
+			if(i == -1 && j == -1){
+				break;
+			}
+			else if(i != -1 && j != -1 &&  i < j){
+				temp =  temp.substring(0, i ) + temp.substring(j+1 , templength);
+				continue;
+			}
+			else if(i != -1 || i > j){
+				temp = temp.substring(0 , j) + temp.substring(j+1 , templength);
+				continue;
+			}
+			else if(j != -1){
+				temp = temp.substring(0 , i) + temp.substring(i+1 , templength);
+				continue;
+			}
+			else{
+				printwithTime("error in title edit" + data + "\n" , '#finished_list');
+				break;
+			}
+		}
+		return temp;
+	}
 	function textsplit(data, sp1, sp2) {
 		if (data.indexOf(sp1) != -1 && data.indexOf(sp2) != -1) {
 			let text1 = data.split(sp1)[1];
