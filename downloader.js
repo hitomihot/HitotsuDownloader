@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         02
 // @namespace    http://tampermonkey.net/
-// @version      0.11
+// @version      1
 // @description  try to take over the world!
 // @author       You
 // @include      https://hitomi.la/galleries/*.html
@@ -14,7 +14,6 @@
 // @require      https://rawgit.com/Stuk/jszip/master/dist/jszip.js
 // @require      https://rawgit.com/eligrey/FileSaver.js/master/FileSaver.js
 // @require      https://cdn.jsdelivr.net/bluebird/latest/bluebird.js
-// @require      https://rawgit.com/johnkpaul/jquery-ajax-retry/master/dist/jquery.ajax-retry.js
 // @grant       GM_xmlhttpRequest
 // @connect      *
 // ==/UserScript==
@@ -32,106 +31,48 @@
 	const subDomainList = ["la", "ba", "aa"];//la,aa,ba
 	const proxyurl = ""; //
 
-	class zipmember {
-		constructor() {
-			this.originurl = "";//for save original url
-			this.jszip = new JSZip();
-			this.mainurl = "";
-		}
-
-		get originurl() {
-			return this._originurl;
-		}
-
-		get jszip() {
-			return this._jszip;
-		}
-
-		get requestlimit() {
-			return this._threadlimit;
-		}
-
-		get mainurl() {
-			return this._mainurl;
-		}
-
-		set originurl(strin) {
-			let text = strin.split("/");
-			this._originurl = strin;
-			this._mainurl = text[0] + "//" + text[2];
-		}
-
-		set jszip(jszi) {
-			this._jszip = jszi;
-		}//need block if not JSzip
-
-		set requestlimit(intege) {
-			this._threadlimit = intege;
-		}
-
-		set mainurl(strin) {
-			this._mainurl = this._mainurl;
-		}
-
-		start() {
+	class hitom_clas{
+		// constructor() {}
+		start(url){
 			let clas = this;
-			if (clas.mainurl == "https://hitomi.la") {
-				let s = clas.h_set_gallery_info(clas.originurl, clas).then(function (info_array) {
-					return clas.h_set_download(info_array[0], info_array[1], 100, clas);//filename , imagearray
-				}).then(function () {
-					zip[0].jszip = "";
-					completezip.push(zip.shift());
-					nextstart();
-					return null;
-				}).catch(function () {
-					zip[0].jszip = "";
-					errorzip.push(zip.shift());
-					nextstart();
-				});
-			}
-
-			else if (clas.mainurl == "https://exhentai.org" || clas.mainurl == "https://e-hentai.org") {
-				let text = clas.originurl.split("/");
-				let s = clas.e_set_gallery_info(clas.originurl, clas).then(function (info_array) {
-					return clas.e_set_download(info_array[0], info_array[1], 100, clas);//filename , imagearray
-				}).then(function () {
-					zip[0].jszip = "";
-					completezip.push(zip.shift());
-					nextstart();
-					return null;
-				}).catch(function () {
-					zip[0].jszip = "";
-					errorzip.push(zip.shift());
-					nextstart();
-				});
-			}
-		}
-
-		h_set_gallery_info(fromurl, clas) {
 			return new Promise(function (resolve, reject) {
-				let tempfilename = "";
-				clas.h_find_gallery_info(fromurl)
-					.then(function (temp_array) {
-					tempfilename = temp_array[0];
-					return clas.h_get_gallery_js(temp_array[1], temp_array[2]);//galleryid, fromurl
-				}).then(function (image_array) {
-					resolve([tempfilename, image_array]);
-				}).catch(function (error) {
-					console.log(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
-					reject(error + ":  h_set_gallery_info: " + fromurl + "\n\n" + clas);
+				clas.h_set_gallery_info(url).then(function (info_array) {
+					return clas.h_set_download(info_array[0], info_array[1], 100);//filename , imagearray
+				}).then(function () {
+					resolve();
+				}).catch(function (e) {
+					console.log("h_set_gallery_info: " + e + "\n------\n" + url + "\n------\n" + clas);
+					reject("h_set_gallery_info: "  +e + "\n------\n" + url + "\n------\n" + clas);
 				});
 			});
 		}
 
-		h_find_gallery_info(fromurl) {
+		h_set_gallery_info(fromurl) {
+			let clas = this;
+			let temp_id = fromurl.split("/")[4].split(".html")[0];
 			return new Promise(function (resolve, reject) {
-				let tempid = fromurl.split(".html")[0].split("/")[4];
+				//let tempfilename = "";
+				let temp_array = [[temp_id , clas.h_find_gallery_info] , [temp_id , clas.h_get_gallery_js]];
+				promis_map(temp_array, function(temp){
+					return temp[1](temp[0]);
+				}, temp_array.length)
+					.then(function (retur_array) {
+					resolve(retur_array);
+				}).catch(function (e) {
+					console.log("h_set_gallery_info: "  + e + "\n------\n" + fromurl + "\n\n" + clas);
+					reject("h_set_gallery_info: "  + e + "\n------\n" + fromurl + "\n\n" + clas);
+				});
+			});
+		}
+
+		h_find_gallery_info(fromid) {
+			//let clas = this; not able in promis_map
+			return new Promise(function (resolve, reject) {
 				let tempname = "";
 				let temp_title = "";
 				let temp_artist = "";
 				let temp_group = "";
-
-				ajax_call("https://hitomi.la/galleries/" + tempid + ".html")
+				promis_retry_timeout(ajax_call , 3,300001, "https://hitomi.la/galleries/" + fromid + ".html")
 					.then(function (data) {
 					let text1 = textsplit(data, "-gallery", "date");
 
@@ -154,22 +95,23 @@
 						temp_group = "N/A";
 					}
 					tempname = temp_group + "_" + temp_artist + "_" + temp_title;
-					resolve([tempname, tempid, "https://hitomi.la/galleries/" + tempid + ".js"]);
+					resolve(tempname);
 				}, function () {
-					tempname = "N/A_N/A_" + tempid;
-					resolve([tempname, tempid, "https://hitomi.la/galleries/" + tempid + ".js"]);
-				}).catch(function () {
-					console.log("error " + ":    h_find_gallery_info: " + fromurl);
-					reject("error " + ":    h_find_gallery_info: " + fromurl);
+					tempname = "N/A_N/A_" + fromid;
+					resolve(tempname);
+				}).catch(function (e) {
+					console.log(" h_find_gallery_info: "  + e + "\n------\n" + fromid);
+					reject("h_find_gallery_info: "  + e + "\n------\n" + fromid);
 				});
 			});
 		}
 
-		h_get_gallery_js(galleryid, fromurl) {
+		h_get_gallery_js(fromid) {
+			//let clas = this; not able in promis_map
 			return new Promise(function (resolve, reject) {
 				let temp_array = [];
 				let subDomainListlength = subDomainList.length;
-				ajax_call(fromurl).then(function (data) {
+				promis_retry_timeout(ajax_call , 3 , 300001 ,  "https://hitomi.la/galleries/" + fromid + ".js").then(function (data) {
 					let temp_array2 = data.split("name\"\:\"");
 					temp_array2.shift();
 					let temp_array2length = temp_array2.length;
@@ -177,90 +119,131 @@
 					for(var i = 0 ; i < temp_array2length; i++){
 						temp_3 = temp_array2[i].split("\"");
 						temp_array[i] = [];
-						temp_array[i][0] = "https://" + subDomainList[i % subDomainListlength] + ".hitomi.la/galleries/" + galleryid + "/";
+						temp_array[i][0] = "https://" + subDomainList[i % subDomainListlength] + ".hitomi.la/galleries/" + fromid + "/";
 						temp_array[i][0] = temp_array[i][0] + temp_3[0];
-						temp_array[i][1] = temp_array[i][0];
+						temp_array[i][1] = "https://" + subDomainList[(i+1) % subDomainListlength] + ".hitomi.la/galleries/" + fromid + "/";
+						temp_array[i][1] = temp_array[i][1] + temp_3[0];
 					}
 					resolve(temp_array);
-				}).catch(function (error) {
-					console.log(error + ":  h_get_gallery_json: " + galleryid + "\n\n" + fromurl);
-					reject(error + ":  h_get_gallery_json: " + galleryid + "\n\n" + fromurl);
+				}).catch(function (e) {
+					console.log("h_get_gallery_js: "  + e + "\n------\n" + fromid);
+					reject("h_get_gallery_js: "  + e + "\n------\n" + fromid);
 				});
 			});
 		}
 
-		h_set_download(filename, image_array, sync_count1, clas) {
+		h_set_download(filename, image_array, split_count1) {
+			let clas = this;
 			return new Promise(function (resolve, reject) {
 				let image_arraylength = image_array.length;
 				let temp_buffer = [];//per 100 image url
 				let add_number = 0;//zip name + per 100 image split
 				while (image_arraylength > 0) {
-					temp_buffer.push(image_array.splice(0, sync_count1));
-					image_arraylength = image_arraylength - sync_count1;
+					temp_buffer.push(image_array.splice(0, split_count1));
+					image_arraylength = image_arraylength - split_count1;
 				}
 
-				return Promise.mapSeries(temp_buffer, function (image_subarray) {
+				Promise.mapSeries(temp_buffer, function (image_subarray) {
 					add_number = add_number + 1;
-					return clas.h_request_all_image(image_subarray, new JSZip(), clas.request_image, "")
+					return clas.h_request_all_image(image_subarray, new JSZip())
 						.then(function (save_zip) {
 						if(temp_buffer.length == 1){
-							return clas.make_savefile(save_zip, filename);
+							return make_savefile(save_zip, filename);
 						}
 						else{
-							return clas.make_savefile(save_zip, filename + "_" + add_number);			
+							return make_savefile(save_zip, filename + "_" + add_number);
 						}
 						add_number = add_number + 1;
 					});
 				}).then(function () {
 					resolve("success");
-				}).catch(function () {
-					console.log("error " + ":  h_set_download: " + filename + "\n\n" + "\n\n" + sync_count1 + "\n\n" + clas);
-					reject("error " + ":  h_set_download: " + filename + "\n\n"+ "\n\n" + sync_count1 + "\n\n" + clas);
+				}).catch(function (e) {
+					console.log("h_set_download: " + e + "\n------\n" + filename + "\n\n" + "\n\n" + split_count1 + "\n\n" + clas);
+					reject("h_set_download: " + e + "\n------\n" + filename + "\n\n" + "\n\n" + split_count1 + "\n\n" + clas);
 				});
 			});
 		}
 
-		h_request_all_image(fromurlarray, save_zip, loop_func, error_function) {
+		h_request_all_image(fromurlarray, save_zip) {
 			let progress = [];
 			let fromurlarraylength = fromurlarray.length;
 			for (var i = 0; i < fromurlarraylength; i++) {
 				progress[i] = fromurlarray[i][0].split("/").pop();
 			}
+			let clas = this;
 			return new Promise(function (resolve, reject) {
-				return promis_map(fromurlarray, function (fromurl) {
-					return loop_func(fromurl, save_zip, loop_func, error_function).then(function () {
+				promis_map(fromurlarray, function (fromurl) {
+					return clas.h_request_image(fromurl).then(function (data) {
+						let filename = fromurl[0].split("/").pop();
+						save_image(save_zip, data, filename);
 						progress.splice(progress.indexOf(fromurl[0].split("/").pop()), 1, "");
-						changewithTime("remain" + progress , '#loading_list');
+						changewithTime("remain" + progress, '#loading_list');
+					}).catch(function (e) {
+						console.log("h_request_all_image_inmap: "+ e + "\n------\n" + fromurlarray + "\n\n" + save_zip);
+						reject("h_request_all_image: "+ e + "\n------\n" + fromurlarray + "\n\n" + save_zip);
 					});
 				}, 5).then(function () {
 					resolve(save_zip);
-				}).catch(function () {
-					console.log("error " + ":  h_request_all_image: " + fromurlarray + "\n\n" + save_zip + "\n\n" + loop_func + "\n\n" + error_function);
-					reject("error " + ":  h_request_all_image: " + fromurlarray + "\n\n" + save_zip + "\n\n" + loop_func + "\n\n" + error_function);
+				}).catch(function (e) {
+					console.log("h_request_all_image: " + e + "\n------\n" +  fromurlarray + "\n\n" + save_zip);
+					reject("h_request_all_image: " + e + "\n------\n" +  fromurlarray + "\n\n" + save_zip);
 				});
 			});
 		}
 
+		h_request_image(...args) {
+			//let clas = this; not work in promis_map
+			return new Promise(function (resolve, reject) {
+				promis_retry_timeout(request_image, 3, 300001, ...args[0])
+					.then(function (data) {
+					resolve(data);
+				})
+					.catch(function (e) {
+					console.log("_request_image: " + e + "\n------\n" +  args);
+					reject("h_request_image: " + e + "\n------\n" +  args);
+				});
+			});
+		}
 
-		e_set_gallery_info(fromurl, clas) {
+	}
+
+	class ehen_clas{
+		start(url){
+			let clas = this;
+			return new Promise(function (resolve, reject) {
+				let s = clas.e_set_gallery_info(url).then(function (info_array) {
+					return clas.e_set_download(info_array[0], info_array[1], 100);//filename , imagearray
+				}).then(function () {
+					resolve();
+				}).catch(function (e) {
+					console.log("ehen_clas.start: " + e + "\n------\n" + url + "\n\n" + clas);
+					reject("ehen_clas.start: " + e + "\n------\n" + url + "\n\n" + clas);
+				});
+			});
+		}
+
+		e_set_gallery_info(fromurl) {
+			let clas = this;
 			return new Promise(function (resolve, reject) {
 				let tempfilename = "";
-				return clas.e_find_gp0(fromurl).then(function (fromurl) {
+				return clas.e_find_gp0(fromurl)
+					.then(function (fromurl) {
 					return clas.e_find_gallery_info(fromurl);
 				}).then(function (temp_array) {
 					tempfilename = temp_array[0];//filename , gallery_array
 					return clas.e_find_s_from_all_g(temp_array[1], clas.e_find_s_from_g);
 				}).then(function (s_array) {
 					resolve([tempfilename, s_array]);
-				}).catch(function (error) {
-					console.log(error + ":  e_set_download: " + fromurl + "\n\n" + clas);
-					reject(error + ":  e_set_download: " + fromurl + "\n\n" + clas);
+				}).catch(function (e) {
+					console.log("e_set_download: "  + e + "\n------\n" +  fromurl + "\n\n" + clas);
+					reject("e_set_download: "  + e + "\n------\n" +  fromurl + "\n\n" + clas);
 				});
 			});
 		}
 
 		e_find_gp0(fromurl) {
 			//find title,artist,group from e_hen or ex_hen
+			let clas = this;
 			return new Promise(function (resolve, reject) {
 				let temp_text = fromurl.split("/");
 				let g_url = "";
@@ -270,7 +253,7 @@
 					temp_id = temp_id.split("-")[0];
 					let temp_search_keyword = temp_gallery + temp_id + "/";//galleryURL[0,1,2,3,4] need2
 
-					return ajax_call(fromurl).then(function (data) {
+					promis_retry_timeout(ajax_call , 3 , 300001 ,  fromurl).then(function (data) {
 						let temp_key = textsplit(data, temp_search_keyword, "/");
 						if (temp_key != "") {
 							resolve(temp_search_keyword + temp_key + "/?p=0");//galleryURL[0,1,2,3,4,5,6] full_url
@@ -279,9 +262,9 @@
 							console.log("error " + ":   e_find_gp0: " + fromurl);
 							reject("error " + ":   e_find_gp0: " + fromurl);
 						}
-					}).catch(function (event) {
-						console.log("error " + ":  e_find_gp0: " + fromurl);
-						reject("error " + ":  e_find_gp0: " + fromurl);
+					}).catch(function (e) {
+						console.log("e_find_gp0: " + e + "\n------\n" + fromurl);
+						reject("e_find_gp0: " + e + "\n------\n" + fromurl);
 					});
 				}
 				else if (temp_text[3] == "g") {
@@ -296,9 +279,10 @@
 		}
 
 		e_find_gallery_info(fromurl) {
+			let clas = this;
 			return new Promise(function (resolve, reject) {
 				let filename = "";
-				return ajax_call(fromurl).then(function (data) {
+				promis_retry_timeout(ajax_call , 3 , 300001 ,  fromurl).then(function (data) {
 					let getartist = textsplit(data, "<div id=\"td_artist:", "\"");
 					if (getartist == "") {
 						getartist = "N/A";
@@ -333,17 +317,18 @@
 					}
 
 					resolve([filename, g_array]);
-				}).catch(function (error) {
-					console.log(error + ":  e_find_gallery_info: " + fromurl);
-					reject(error + ":  e_find_gallery_info: " + fromurl);
+				}).catch(function (e) {
+					console.log("e_find_gallery_info: " + e + "\n------\n" + fromurl);
+					reject("e_find_gallery_info: " + e + "\n------\n" + fromurl);
 				});
 			});
 		}
 
-		e_find_s_from_all_g(fromurlarray, loop_func) {
+		e_find_s_from_all_g(fromurlarray) {
+			let clas = this;
 			return new Promise(function (resolve, reject) {
 				let s_array = [];
-				return promis_map(fromurlarray, loop_func, 5)
+				return promis_map(fromurlarray, clas.e_find_s_from_g, 5)
 					.then(function (retur_array) {
 					let temp_arraylength = retur_array.length;
 					for (let i = 0; i < temp_arraylength; i++) {
@@ -355,18 +340,19 @@
 						}
 					}
 					resolve(s_array);
-				}).catch(function (event) {
-					console.log("error " + ":  e_find_s_from_all_g: " + fromurlarray + "\n\n" + loop_func);
-					reject("error " + ":  e_find_s_from_all_g: " + fromurlarray + "\n\n" + loop_func);
+				}).catch(function (e) {
+					console.log(" e_find_s_from_all_g: " + e + "\n------\n" + fromurlarray + "\n\n" + loop_func);
+					reject("e_find_s_from_all_g: " + e + "\n------\n" + fromurlarray + "\n\n" + loop_func);
 				});
 			});
 		}
 
 		e_find_s_from_g(fromurl) {
+			let clas = this;
 			return new Promise(function (resolve, reject) {
 				let mainurl = fromurl.split("/");
 				mainurl = mainurl[0] + "//" + mainurl[2] + "/s/";
-				return ajax_call(fromurl).then(function (data) {
+				promis_retry_timeout(ajax_call , 3 , 300001 ,  fromurl).then(function (data) {
 					let s_array = textsplit(data, "id=\"gdt\">", "class=\"c\">");
 					s_array = s_array.split(mainurl);
 					s_array.shift();
@@ -375,14 +361,15 @@
 						s_array[i] = mainurl + s_array[i].split("\"")[0];
 					}
 					resolve(s_array);
-				}).catch(function (event) {
-					console.log("error " + ": e_find_s_from_g: " + fromurl);
-					reject("error " + ":  e_find_s_from_g: " + fromurl);
+				}).catch(function (e) {
+					console.log("e_find_s_from_g: " + e + "\n------\n" + fromurl);
+					reject("e_find_s_from_g: " + e + "\n------\n" + fromurl);
 				});
 			});
 		}
 
-		e_set_download(filename, s_array, sync_count1, clas) {
+		e_set_download(filename, s_array, sync_count1) {
+			let clas = this;
 			return new Promise(function (resolve, reject) {
 				let s_arraylength = s_array.length;
 				let temp_buffer = [];
@@ -391,145 +378,182 @@
 					temp_buffer.push(s_array.splice(0, sync_count1));
 					s_arraylength = s_arraylength - sync_count1;
 				}
-
-				return Promise.mapSeries(temp_buffer, function (s_subarray) {
-					return clas.e_find_image_from_all_s(s_subarray, clas.e_find_image_from_s)
+				Promise.mapSeries(temp_buffer, function (s_subarray) {
+					add_number = add_number + 1;
+					return clas.e_find_image_from_all_s(s_subarray , clas.e_find_image_from_s)
 						.then(function (image_array) {
-						add_number = add_number + 1;
-						return clas.e_request_all_image(image_array, new JSZip(), clas.request_image, clas.e_find_image_from_s)
+						return clas.e_request_all_image(image_array, new JSZip())
 							.then(function (save_zip) {
 							if(temp_buffer.length == 1){
-								return clas.make_savefile(save_zip, filename);
+								return make_savefile(save_zip, filename);
 							}
 							else{
-								return clas.make_savefile(save_zip, filename + "_" + add_number);			
+								return make_savefile(save_zip, filename + "_" + add_number);
 							}
 						});
 					});
 				}).then(function () {
 					resolve("success");
-				}).catch(function () {
-					console.log("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
-					reject("error " + ":  e_set_download: " + filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
+				}).catch(function (e) {
+					console.log("e_set_download: "  + e + "\n------\n" +   filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
+					reject("e_set_download: "  + e + "\n------\n" +   filename + "\n\n" + s_array + "\n\n" + sync_count1 + "\n\n" + clas);
 				});
 			});
 		}
 
-		e_find_image_from_all_s(fromurlarray, loop_func) {
+		e_find_image_from_all_s(fromurlarray , loop_func) {
+			let clas = this;
 			return new Promise(function (resolve, reject) {
 				let image_array = [];
-				return promis_map(fromurlarray, loop_func, 100).then(function (temp_array) {
+				promis_map(fromurlarray, loop_func, 5)
+					.then(function (temp_array) {
 					let temp_arraylength = temp_array.length;
 					for (let i = 0; i < temp_arraylength; i++) {
 						image_array.push(temp_array[i]);
 					}
 					resolve(image_array);
-				}).catch(function (event) {
-					console.log("error " + ": e_find_image_from_all_s: " + fromurlarray + "\n\n" + loop_func);
-					reject("error " + ": e_find_image_from_all_s: " + fromurlarray + "\n\n" + loop_func);
+				}).catch(function (e) {
+					console.log("e_find_image_from_all_s: " + e + "\n------\n" + fromurlarray);
+					reject("e_find_image_from_all_s: " + e + "\n------\n" + fromurlarray);
 				});
 			});
 		}
 
 		e_find_image_from_s(fromurl) {
+			//let clas = this;
 			return new Promise(function (resolve, reject) {
-				return ajax_call(fromurl).then(function (data) {
+				promis_retry_timeout(ajax_call , 3 , 300001 ,  fromurl).then(function (data) {
 					let image_url = [];
 					image_url[0] = textsplit(data, "id=\"img\"", "style");
 					image_url[0] = textsplit(image_url[0], "src=\"", "\"");
 					image_url[1] = textsplit(data, "return nl(\'", "\')\"");
 					image_url[1] = fromurl + "?nl=" + image_url[1];
 					resolve(image_url);//main,suburl
-				}).catch(function (event) {
-					console.log("error " + ":  e_find_image_from_s: " + fromurl);
-					reject("error " + ":  e_find_image_from_s: " + fromurl);
+				}).catch(function (e) {
+					console.log("e_find_image_from_s: " + e + "\n------\n" + fromurl);
+					reject("e_find_image_from_s: " + e + "\n------\n" + fromurl);
 				});
 			});
 		}
 
-		e_request_all_image(fromurlarray, save_zip, loop_func, error_function) {
+		e_request_all_image(fromurlarray, save_zip) {
 			let progress = [];
 			let fromurlarraylength = fromurlarray.length;
 			for (var i = 0; i < fromurlarraylength; i++) {
 				progress[i] = fromurlarray[i][0].split("/").pop();
 			}
+			let clas = this;
 			return new Promise(function (resolve, reject) {
-				return promis_map(fromurlarray, function (fromurl) {
-					return loop_func(fromurl, save_zip, loop_func, error_function).then(function () {
-						progress.splice(progress.indexOf(fromurl[0].split("/").pop()), 1, "");
+				return promis_map(fromurlarray, function (fromurl) {//why pass object?
+					return clas.e_request_image(fromurl[1] , clas.e_find_image_from_s , fromurl[0]).then(function (data) {
+						let filename = fromurl[0].toString().split("/").pop();
+						save_image(save_zip, data, filename);
+						progress.splice(progress.indexOf(filename), 1, "");
 						changewithTime("remain: " + progress , '#loading_list');
-					});
-				}, 5)
+					});}, 5)
 					.then(function () {
 					resolve(save_zip);
-				}).catch(function () {
-					console.log("error " + ":  e_request_all_image: " + fromurlarray + "\n\n" + save_zip + "\n\n" + loop_func + "\n\n" + error_function);
-					reject("error " + ":  e_request_all_image: " + fromurlarray + "\n\n" + save_zip + "\n\n" + loop_func + "\n\n" + error_function);
+				}).catch(function (e) {
+					console.log("e_request_all_image: " + e + "\n------\n" + fromurlarray + "\n\n" + save_zip + "\n\n");
+					reject("e_request_all_image: " + e + "\n------\n" + fromurlarray + "\n\n" + save_zip + "\n\n");
 				});
 			});
 		}
 
-		request_image(fromurl, save_zip, self_func, error_function) {
-			let filename = fromurl[0].split("/").pop();
-			console.log("\n"+"try download: "+filename);
+		e_request_image(suburl , subfunc , ...args) {
+			//let recal = arguments.callee;
 			return new Promise(function (resolve, reject) {
-				var ret = GM_xmlhttpRequest({
-					method: "GET",
-					url: proxyurl + fromurl[0],
-					ignoreCache: true,
-					responseType: 'arraybuffer',
-					redirectionLimit: 0, // this is equivalent to 'failOnRedirect: true'
-					onload:function(){
-						//let filename = fromurl[0].split("/").pop();
-						//console.log("\n"+"finishdownload: "+filename);
-						save_zip.file(filename, this.response, {base64: true});
-						resolve("success");
-					},
-					onreadystatechange: function () {
-						if (this.readyState == 4) {
-							if (this.status == 200 || this.status == 304) {}
-							else {
-								if ((error_function != undefined) && (error_function != "")) {//need check really effective error care function?
-									error_function(fromurl[1])
-										.then(function (fromurl) {
-										return self_func(fromurl, save_zip);
-									}).then(function () {
-										resolve("success");
-									}).catch(function () {
-										console.log("error " + ":  request_image: in " + error_function + "\n\n" + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
-										reject("error " + ":  request_image: in " + error_function + "\n\n" + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
-									});
-								}
-								else {
-									return self_func(fromurl, save_zip)
-										.then(function () {
-										resolve("success");
-									}).catch(function () {
-										console.log("error " + ":  request_image: in " + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
-										reject("error " + ":  request_image: in " + self_func + "\n\n" + fromurl + "\n\n" + save_zip);
-									});
-								}
-							}
-						}
-					}
-				});        
-			});
-		}
+				promis_retry_timeout(request_image, 1, 300001, ...args)
+					.then(function (data) {
+					resolve(data);
+				} , function(){
+					console.log("call suburl: "  + "\n------\n" +  suburl);
+					subfunc(suburl).then(function(url){
+						resolve(e_request_image("","",url[0]));
+					});
 
-		make_savefile(save_zip, filename) {
-			return new Promise(function (resolve, reject) {
-				let content = save_zip.generateAsync({type: "blob"})
-				.then(function (blob) {
-					saveAs(blob, filename + ".zip");
-					printwithTime("finish download " + filename + ".zip" , '#finished_list');
-					resolve("success");
 				})
-				.catch(function () {
-					console.log("error " + ":  make_savefile: " + save_zip + "\n\n" + filename);
-					reject("error " + ":  make_savefile: " + save_zip + "\n\n" + filename);
+					.catch(function (e) {
+					console.log("_request_image: " + e + "\n------\n" +  args);
+					reject("h_request_image: " + e + "\n------\n" +  args);
 				});
 			});
 		}
+
+
+	}
+
+	class zipmember {
+		constructor() {
+			this.originurl = "";//for save original url
+			this.mainurl = "";
+			this.functio_clas = "";
+		}
+
+		get originurl() {
+			return this._originurl;
+		}
+
+		get mainurl() {
+			return this._mainurl;
+		}
+
+		get functio_clas() {
+			return this._functio_clas;
+		}
+
+		set originurl(strin) {
+			let text = strin.split("/");
+			this._originurl = strin;
+			this._mainurl = text[0] + "//" + text[2];
+		}
+
+		set mainurl(strin) {
+			this._mainurl = this._mainurl;
+		}
+
+		set functio_clas(clas) {
+			this._functio_clas = clas;
+		}
+
+		start() {
+			if (this.mainurl == "https://hitomi.la") {
+				this.functio_clas = new hitom_clas();
+				this.functio_clas.start(this.originurl)
+					.then(function () {
+					completezip.push(zip.shift());
+					nextstart();
+					return null;
+				}).catch(function (e) {
+					errorzip.push(zip.shift());
+					nextstart();
+					console.log("zipmember.start: " + e + "\n------\n" + this.originurl);
+					return null;
+				});
+			}
+
+			else if (this.mainurl == "https://exhentai.org" || this.mainurl == "https://e-hentai.org") {
+				this.functio_clas = new ehen_clas();
+				this.functio_clas.start(this.originurl)
+					.then(function () {
+					completezip.push(zip.shift());
+					nextstart();
+					return null;
+				}).catch(function (e) {
+					errorzip.push(zip.shift());
+					nextstart();
+					console.log("zipmember.start: " + e + "\n------\n" + this.originurl);
+					return null;
+				});
+			}
+			else{
+				console.log("error wrong url");
+			}
+		}
+
+
+
+
 
 	}
 
@@ -545,8 +569,8 @@
 
 	create_opendb("url_array", 1)
 		.then(function (retur) {db = retur;})
-		.catch(function (event) {
-		console.log("error " + ":  document_ready_create_opendb: " + "url_array" + "\n\n" + "1");
+		.catch(function (e) {
+		console.log("document_ready_create_opendb: " + e + "\n------\n" + "\"url_array\"" + "\n\n" + "1");
 	});
 
 	$.ajaxPrefilter(function (options) {
@@ -562,7 +586,8 @@
 	});
 
 	$('#getData').click(function () {
-		if (zip.length <= 0) {
+		let ziplength = zip.length;
+		if (ziplength == 0) {
 			printwithTime("start------------" , '#finished_list');
 			db_get_rw(db, "url_array", 1, "url").then(function (urls) {
 				if (urls != "" || urls != undefined) {
@@ -572,9 +597,31 @@
 				else {
 					download_get($('#input_url').value);
 				}
-			}).catch(function (event) {
-				console.log("error " + ":  #getData_clickevent: " + zip.length);
+			}).catch(function (e) {
+				console.log("#getData_clickevent: " + e + "\n------\n" + zip.length);
 			});
+		}
+		else if(ziplength > 0){
+			db_get_rw(db, "url_array", 1, "url").then(function (urls) {
+				if (urls != "" || urls != undefined) {
+					return db_put(db, "url_array", ursl + $('#input_url').val(), 1);
+				}
+				else {
+					return db_put(db, "url_array", $('#input_url').val(), 1);
+				}
+				let inputurl = urls.split("http");
+				inputurl.shift();
+				let inputurllength = inputurl.length;
+				for (let i = 0; i < inputurllength; i++) {
+					printwithoutTime("\n"+ "http" + inputurl[i] + "\n" , '#finished_list');
+				}
+				printwithoutTime("added url list:" , '#finished_list');
+			}).catch(function (e) {
+				console.log("#getData_clickevent: " + e + "\n------\n" + zip.length);
+			});
+		}
+		else{
+			printwithTime("error:download queue's length < 0 WTF?" , '#finished_list');
 		}
 	});
 
@@ -582,8 +629,8 @@
 		db_get_rw(db, "url_array", 1, "url").then(function (value) {
 			printwithTime("add download list" +"\n"+ window.location.href , '#finished_list');
 			return db_put(db, "url_array", {url: value + window.location.href}, 1);
-		}).catch(function (event) {
-			console.log("error " + ":  #pushurl_clickevent: " + db +"\n\n" +  "url_array" + "\n\n" + "1" + "\n\n" +  "url");
+		}).catch(function (e) {
+			console.log("#pushurl_clickevent: "+ e + "\n------\n" + db +"\n\n" +  "\"url_array\"" + "\n\n" + "1" + "\n\n" +  "url");
 		});
 	});
 
@@ -603,7 +650,8 @@
 	function nextstart() {
 		if (zip.length > 0) {
 			zip[0].start(zip[0]);
-        printwithTime("start download from:" + zip[0].originurl , '#finished_list');
+			printwithTime("start download from:" + zip[0].originurl , '#finished_list');
+			changewithTime("ready for file download" , '#loading_list');
 		}
 		else {/*end or error*/
 			let temp = db_get_rw(db, "url_array", 1, "url").then(function (urls) {
@@ -614,8 +662,8 @@
 				else {
 					//reject("nextstart");
 				}
-			}).catch(function (event) {
-				console.log("error " + ":  nextstart: " + db +"\n\n" +  "url_array" + "\n\n" + "1" + "\n\n" +  "url");
+			}).catch(function (e) {
+				console.log("nextstart: " + e + "\n------\n" + db +"\n\n" +  "\"url_array\"" + "\n\n" + "1" + "\n\n" +  "url");
 			});
 		}
 	}
@@ -664,6 +712,8 @@
 		}
 		return temp;
 	}
+
+
 	function textsplit(data, sp1, sp2) {
 		if (data.indexOf(sp1) != -1 && data.indexOf(sp2) != -1) {
 			let text1 = data.split(sp1)[1];
@@ -675,6 +725,8 @@
 		}
 	}
 
+
+
 	function ajax_call(fromurl , fromurltype) {
 		return new Promise(function (resolve, reject) {
 			$.ajax({
@@ -683,34 +735,17 @@
 				error: function(xhr, status, error) {
 					var err = eval("(" + xhr.responseText + ")");
 					reject("error " + err.Message +":  ajax_call: " + fromurl);
-				}}).retry({times: 3})
+				}})
 				.done(function (data) {
+				console.log(fromurl);
 				resolve(data);
 			});
 		});
 	}
 
-	function promis_all(loop_array, loop_func) {
-		return Promise.all(loop_array.map(loop_func))
-			.then(function (retur_array) {
-			return new Promise(function (resolve, reject) {
-				if (retur_array != "") {
-					resolve(retur_array);
-				}
-				else {
-					console.log("error " + ":  promis_all: " + loop_array + "\n\n" + loop_func);
-					reject("error " + ":  promis_all: " + loop_array + "\n\n" + loop_func);
-				}
-			});
-		}).catch(function (event) {
-			console.log("error " + ":  promis_all: " + loop_array + "\n\n" + loop_func);
-			reject("error " + ":  promis_all: " + loop_array + "\n\n" + loop_func);
-		});
-	}
-
 	function promis_map(loop_array, loop_func, max_async) {
 		return new Promise(function (resolve, reject) {
-			return Promise.map(loop_array, loop_func, {concurrency: max_async})
+			Promise.map(loop_array, loop_func, {concurrency: max_async})
 				.then(function (retur_array) {
 				if (retur_array != "") {
 					resolve(retur_array);
@@ -719,9 +754,9 @@
 					console.log("error " + ":  promis_map: " + loop_array + "\n\n" + loop_func + "\n\n" + max_async);
 					reject("error " + ":  promis_map: " + loop_array + "\n\n" + loop_func + "\n\n" + max_async);
 				}
-			}).catch(function () {
-				console.log("error " + ":  promis_map: " + loop_array + "\n\n" + loop_func + "\n\n" + max_async);
-				reject("error " + ":  promis_map: " + loop_array + "\n\n" + loop_func + "\n\n" + max_async);
+			}).catch(function (e) {
+				console.log("promis_map: " + e + "\n------\n" + loop_array + "\n\n" + loop_func + "\n\n" + max_async + "\n\n");
+				reject("promis_map: " + e + "\n------\n" + loop_array + "\n\n" + loop_func + "\n\n" + max_async);
 			});
 		});
 	}
@@ -740,8 +775,8 @@
 				}
 			};
 			request.onerror = function (event) {
-				console.log("error " + event.target.errorCode + ":  db_get_rw: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
-				reject("error " + event.target.errorCode + ":  db_get_rw: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+				console.log("error " + ":  db_get_rw: " + event.target.errorCode + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+				reject("error " + ":  db_get_rw: " + event.target.errorCode + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
 			};
 		});
 	}
@@ -755,8 +790,8 @@
 				resolve("");
 			};
 			request.onerror = function (event) {
-				console.log("error " + event.target.errorCode + ":  db_get_rw: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
-				reject("error " + event.target.errorCode + ":  db_get_rw: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+				console.log("error "  + ":  db_put: " + event.target.errorCod + datab + "\n\n" + schim + "\n\n" + id + "\n\n");
+				reject("error "  + ":  db_put" + event.target.errorCode + datab + "\n\n" + schim + "\n\n" + id + "\n\n");
 			};
 		});
 	}
@@ -775,8 +810,8 @@
 				}
 			};
 			request.onerror = function (event) {
-				console.log("error " + event.target.errorCode + ":  db_get_ro: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
-				reject("error " + event.target.errorCode + ":  db_get_ro: " + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+				console.log("error "  + ":  db_get_ro: " + event.target.errorCode + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
+				reject("error " + ":  db_get_ro: " + event.target.errorCode + datab + "\n\n" + schim + "\n\n" + id + "\n\n" + stir + "\n\n");
 			};
 		});
 	}
@@ -794,8 +829,8 @@
 				store.createIndex("url_index", ["url"]);
 			};
 			request.onerror = function (event) {
-				alert("Database error: " + event.target.errorCode);
-				reject();
+				console.log("Database error: " + event.target.errorCode);
+				reject("Database error: " + event.target.errorCode);
 			};
 			request.onsuccess = function (event) {
 				databas = request.result;
@@ -804,6 +839,77 @@
 		});
 	}
 
+	function promis_retry_timeout(func, max_try, max_time, ...args) {
+		return new Promise(function (resolve, reject) {
+			func(...args).timeout(max_time)
+				.then(function (data) {
+				if (data != "")
+					resolve(data);
+			} , function(){
+				if (max_try > 0) {
+					console.log("promis_retry_timeout: " + args + "\n\n" + max_try + "\n\n" + max_time);
+					return promis_retry_timeout(func, max_try - 1, max_time, ...args)
+						.then(function(data){
+						resolve(data);
+					});
+				}
+				else {
+					console.log("promis_retry_timeout: " + args + "\n\n" + max_try + "\n\n" + max_time);
+					reject("promis_retry_timeout: " + args + "\n\n" + max_try + "\n\n" + max_time);
+				}
+			})
+				.catch(function (e) {
+				console.log("promis_retry_timeout: " + e + "\n------\n" +  args + "\n\n" + max_try + "\n\n" + func + "\n\n");
+				reject("promis_retry_timeout: " + e + "\n------\n" +  args + "\n\n" + max_try + "\n\n" + func + "\n\n");
 
+			});
+		});
+	}
+	function save_image(save_zip, data, filename){
+		save_zip.file(filename, data, {base64: true});
+	}
+
+	function request_image(fromurl) {
+		let filename = fromurl.split("/").pop();
+		console.log("\n"+"try download: "+filename);
+		return new Promise(function (resolve, reject) {
+			var ret = GM_xmlhttpRequest({
+				method: "GET",
+				url: proxyurl + fromurl,
+				ignoreCache: false,
+				responseType: 'arraybuffer',
+				redirectionLimit: 0, // this is equivalent to 'failOnRedirect: true'
+				onload:function(){
+					//let filename = fromurl[0].split("/").pop();
+					console.log("\n"+"finishdownload: "+filename);
+					resolve(this.response);
+				},
+				onreadystatechange: function () {
+					if (this.readyState == 4) {
+						if (this.status == 200 || this.status == 304) {}
+						else {
+							console.log("error " + ":  request_image: in " + fromurl);
+							reject("error " + ":  request_image: in " + fromurl);
+						}
+					}
+				}
+			});
+		});
+	}
+
+	function make_savefile(save_zip, filename) {
+		return new Promise(function (resolve, reject) {
+			let content = save_zip.generateAsync({type: "blob"})
+			.then(function (blob) {
+				saveAs(blob, filename + ".zip");
+				printwithTime("finish download " + filename + ".zip" , '#finished_list');
+				resolve("success");
+			})
+			.catch(function (e) {
+				console.log(" make_savefile: " + e + "\n------\n" +save_zip + "\n\n" + filename);
+				reject("make_savefile: " + e + "\n------\n" + save_zip + "\n\n" + filename);
+			});
+		});
+	}
 
 })();
