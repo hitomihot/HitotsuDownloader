@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         02
 // @namespace    http://tampermonkey.net/
-// @version      1
+// @version      2
 // @description  try to take over the world!
 // @author       You
 // @include      https://hitomi.la/galleries/*.html
@@ -14,6 +14,7 @@
 // @require      https://rawgit.com/Stuk/jszip/master/dist/jszip.js
 // @require      https://rawgit.com/eligrey/FileSaver.js/master/FileSaver.js
 // @require      https://cdn.jsdelivr.net/bluebird/latest/bluebird.js
+// @require      https://rawgit.com/johnkpaul/jquery-ajax-retry/master/dist/jquery.ajax-retry.js
 // @grant       GM_xmlhttpRequest
 // @connect      *
 // ==/UserScript==
@@ -252,7 +253,6 @@
 					let temp_id = temp_text.pop();
 					temp_id = temp_id.split("-")[0];
 					let temp_search_keyword = temp_gallery + temp_id + "/";//galleryURL[0,1,2,3,4] need2
-
 					promis_retry_timeout(ajax_call , 3 , 300001 ,  fromurl).then(function (data) {
 						let temp_key = textsplit(data, temp_search_keyword, "/");
 						if (temp_key != "") {
@@ -445,7 +445,7 @@
 			let clas = this;
 			return new Promise(function (resolve, reject) {
 				return promis_map(fromurlarray, function (fromurl) {//why pass object?
-					return clas.e_request_image(fromurl[1] , clas.e_find_image_from_s , fromurl[0]).then(function (data) {
+					return clas.e_request_image(fromurl[1] , [clas.e_find_image_from_s , clas.e_request_image] , fromurl[0]).then(function (data) {
 						let filename = fromurl[0].toString().split("/").pop();
 						save_image(save_zip, data, filename);
 						progress.splice(progress.indexOf(filename), 1, "");
@@ -461,15 +461,15 @@
 		}
 
 		e_request_image(suburl , subfunc , ...args) {
-			//let recal = arguments.callee;
+			let recal = $.extend(true,{},this.e_request_image);
 			return new Promise(function (resolve, reject) {
 				promis_retry_timeout(request_image, 1, 300001, ...args)
 					.then(function (data) {
 					resolve(data);
 				} , function(){
 					console.log("call suburl: "  + "\n------\n" +  suburl);
-					subfunc(suburl).then(function(url){
-						resolve(e_request_image("","",url[0]));
+					subfunc[0](suburl).then(function(url){
+						resolve(subfunc[1]("","",url[0]));//i think subfunc is bad way
 					});
 
 				})
@@ -733,11 +733,10 @@
 				url: fromurl,
 				mimeType:'text/plain',
 				error: function(xhr, status, error) {
-					var err = eval("(" + xhr.responseText + ")");
+					//var err = eval("(" + xhr.responseText + ")");
 					reject("error " + err.Message +":  ajax_call: " + fromurl);
 				}})
 				.done(function (data) {
-				console.log(fromurl);
 				resolve(data);
 			});
 		});
